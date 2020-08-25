@@ -176,7 +176,7 @@ class KotlinToolchain private constructor(
         toolchain.classLoader.loadClass("org.jetbrains.kotlin.cli.common.ExitCode")
 
       execMethod =
-        compilerClass.getMethod("exec", PrintStream::class.java, Array<String>::class.java)
+        compilerClass.getMethod("exec", PrintStream::class.java, String::class.java, Array<String>::class.java)
       getCodeMethod = exitCodeClass.getMethod("getCode")
     }
 
@@ -184,9 +184,9 @@ class KotlinToolchain private constructor(
     // 1 is a standard compilation error
     // 2 is an internal error
     // 3 is the script execution error
-    fun compile(args: Array<String>, out: PrintStream): Int {
+    fun compile(args: Array<String>, out: PrintStream, diagnosticsFile: String?): Int {
       val compiler = compilerClass.getConstructor().newInstance()
-      val exitCodeInstance = execMethod.invoke(compiler, out, args)
+      val exitCodeInstance = execMethod.invoke(compiler, out, diagnosticsFile, args)
       return getCodeMethod.invoke(exitCodeInstance, *NO_ARGS) as Int
     }
   }
@@ -199,5 +199,5 @@ class KotlinToolchain private constructor(
   @Singleton
   class K2JSCompilerInvoker @Inject constructor(
     toolchain: KotlinToolchain
-  ) : KotlinCliToolInvoker(toolchain, "org.jetbrains.kotlin.cli.js.K2JSCompiler")
+  ) : KotlinCliToolInvoker(toolchain, "io.bazel.kotlin.compiler.BazelK2JSCompiler")
 }

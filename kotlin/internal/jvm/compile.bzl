@@ -554,6 +554,7 @@ def kt_jvm_produce_jar_actions(ctx, rule_kind):
                 "kotlin_output_jdeps": kt_jdeps,
                 "output_deps_proto": java_jdeps,
                 "generated_java_srcjar": kt_generated_java_srcjar,
+                "diagnosticsfile": ctx.outputs.diagnosticsfile,
             },
         )
         _run_merge_jdeps_action(
