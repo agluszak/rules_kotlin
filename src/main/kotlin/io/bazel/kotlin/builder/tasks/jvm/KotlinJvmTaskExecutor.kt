@@ -48,11 +48,8 @@ class KotlinJvmTaskExecutor @Inject internal constructor(
     }
   }
 
-  fun execute(context: CompilationTaskContext, task: JvmCompilationTask) {
-      execute(context, task, null)
-  }
-
-  fun execute(context: CompilationTaskContext, task: JvmCompilationTask, diagnosticsFile: String?) {
+  fun execute(context: CompilationTaskContext, task: JvmCompilationTask,
+              diagnosticsFile: String? = null) {
     val preprocessedTask = task
       .preProcessingSteps(context)
       .runPlugins(context, plugins, compiler)
@@ -90,7 +87,7 @@ class KotlinJvmTaskExecutor @Inject internal constructor(
 
                     },
                   printOnFail = false,
-                  diagnosticsFile =  diagnosticsFile)
+                  diagnosticsFile = diagnosticsFile)
               } else {
                 emptyList()
               }
