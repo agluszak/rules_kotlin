@@ -279,7 +279,7 @@ fun JvmCompilationTask.compileKotlin(
   compiler: KotlinToolchain.KotlincInvoker,
   args: CompilationArgs = baseArgs(),
   printOnFail: Boolean = true,
-  diagnosticsFile: String?
+  diagnosticsFile: String? = null
 ): List<String> {
   if (inputs.kotlinSourcesList.isEmpty()) {
     writeJdeps(outputs.jdeps, emptyJdeps(info.label))
@@ -297,7 +297,8 @@ fun JvmCompilationTask.compileKotlin(
         context.whenTracing {
           context.printLines("compileKotlin arguments:\n", it)
         }
-        return@let context.executeCompilerTask(it, compiler::compile, printOnFail = printOnFail, diagnosticsFile = diagnosticsFile)
+        return@let context.executeCompilerTask(it, compiler::compile, printOnFail = printOnFail,
+          diagnosticsFile = diagnosticsFile)
           .also {
             context.whenTracing {
               printLines(
