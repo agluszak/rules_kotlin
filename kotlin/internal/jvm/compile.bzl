@@ -360,11 +360,14 @@ def _run_merge_jdeps_action(ctx, toolchains, jdeps, outputs, deps):
     ctx.actions.run(
         mnemonic = mnemonic,
         inputs = inputs,
-        tools = [toolchains.kt.jdeps_merger.files_to_run],
+        tools = [toolchains.kt.jdeps_merger.files_to_run, toolchains.kt.jvm_stdlibs.compile_jars],
         outputs = [f for f in outputs.values()],
         executable = toolchains.kt.jdeps_merger.files_to_run.executable,
         execution_requirements = toolchains.kt.execution_requirements,
-        arguments = [args],
+        arguments = [
+            ctx.actions.args().add_all(toolchains.kt.builder_args),
+            args,
+        ],
         progress_message = progress_message,
     )
 
@@ -471,6 +474,7 @@ def _run_kt_builder_action(
     """Creates a KotlinBuilder action invocation."""
     kotlinc_options = ctx.attr.kotlinc_opts[KotlincOptions] if ctx.attr.kotlinc_opts else toolchains.kt.kotlinc_options
     javac_options = ctx.attr.javac_opts[JavacOptions] if ctx.attr.javac_opts else toolchains.kt.javac_options
+
     args = _utils.init_args(ctx, rule_kind, associates.module_name, kotlinc_options)
 
     for f, path in outputs.items():
@@ -497,6 +501,7 @@ def _run_kt_builder_action(
         omit_if_empty = True,
         uniquify = True,
     )
+
     args.add_all(
         "--processorpath",
         annotation_processors,
@@ -563,7 +568,7 @@ def _run_kt_builder_action(
             toolchains.kt.execution_requirements,
             {"worker-key-mnemonic": mnemonic},
         ),
-        arguments = [args],
+        arguments = [ctx.actions.args().add_all(toolchains.kt.builder_args), args],
         progress_message = progress_message,
         env = {
             "LC_CTYPE": "en_US.UTF-8",  # For Java source files
@@ -653,6 +658,13 @@ def kt_jvm_produce_jar_actions(ctx, rule_kind):
         java_toolchain = toolchains.java,
     )
 
+    generated_source_jar = java_common.pack_sources(
+        ctx.actions,
+        output_source_jar = ctx.actions.declare_file(ctx.label.name + "-gensrc.jar"),
+        source_jars = generated_src_jars,
+        java_toolchain = toolchains.java,
+    ) if generated_src_jars else None
+
     java_info = JavaInfo(
         output_jar = output_jar,
         compile_jar = compile_jar,
@@ -662,6 +674,7 @@ def kt_jvm_produce_jar_actions(ctx, rule_kind):
         runtime_deps = [_java_info(d) for d in ctx.attr.runtime_deps],
         exports = [_java_info(d) for d in getattr(ctx.attr, "exports", [])],
         neverlink = getattr(ctx.attr, "neverlink", False),
+        generated_source_jar = generated_source_jar,
     )
 
     instrumented_files = coverage_common.instrumented_files_info(
