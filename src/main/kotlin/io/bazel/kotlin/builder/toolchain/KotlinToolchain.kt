@@ -302,6 +302,6 @@ class KotlinToolchain private constructor(
       toolchain: KotlinToolchain,
     ) : KotlinCliToolInvoker(
         toolchain.toolchainWithReflect(),
-        "io.bazel.kotlin.compiler.BazelK2JVMCompiler",
+        "org.jetbrains.kotlin.cli.jvm.K2JVMCompiler",
       )
 }

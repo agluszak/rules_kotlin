@@ -8,6 +8,11 @@ bazel_dep(
     name = "rules_kotlin",
     version = "1.9.5",
 )
+local_path_override(
+    module_name = "rules_kotlin",
+    path = "../.."
+)
+
 bazel_dep(
     name = "rules_jvm_external",
     version = "5.3",

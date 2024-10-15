@@ -15,23 +15,23 @@
 load("//src/main/kotlin:bootstrap.bzl", "kt_bootstrap_library")
 load("//src/main/starlark/release:packager.bzl", "release_archive")
 
-# The compiler library, this is co-located in the kotlin compiler classloader.
-kt_bootstrap_library(
-    name = "compiler",
-    srcs = glob(["*.kt"]),
-    neverlink_deps = [
-        "//kotlin/compiler:kotlin-compiler",
-        "//kotlin/compiler:kotlin-annotation-processing",
-        "//kotlin/compiler:kotlin-script-runtime",
-    ],
-    visibility = ["//src:__subpackages__"],
-)
-
-release_archive(
-    name = "pkg",
-    package_dir = "io/bazel/kotlin/compiler",
-    src_map = {
-        ":compiler.jar": "compiler.jar",
-        "BUILD.release.bazel": "BUILD.bazel",
-    },
-)
+# # The compiler library, this is co-located in the kotlin compiler classloader.
+# kt_bootstrap_library(
+#     name = "compiler",
+#     srcs = glob(["*.kt"]),
+#     neverlink_deps = [
+#         "//kotlin/compiler:kotlin-compiler",
+#         "//kotlin/compiler:kotlin-annotation-processing",
+#         "//kotlin/compiler:kotlin-script-runtime",
+#     ],
+#     visibility = ["//src:__subpackages__"],
+# )
+#
+# release_archive(
+#     name = "pkg",
+#     package_dir = "io/bazel/kotlin/compiler",
+#     src_map = {
+#         ":compiler.jar": "compiler.jar",
+#         "BUILD.release.bazel": "BUILD.bazel",
+#     },
+# )

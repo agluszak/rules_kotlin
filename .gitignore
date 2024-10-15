@@ -8,3 +8,5 @@ trace.profile.gz
 .idea
 MODULE.bazel.lock
 user.bazelrc
+.bazelbsp
+projectview.bazelproject
