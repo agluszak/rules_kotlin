@@ -98,7 +98,7 @@ versions = struct(
         url_templates = [
             "https://mimuw.edu.pl/~agluszak/rules_kotlin_release.tgz",
         ],
-        sha256 = "3b7fda9526c83e5fa742bf5aa5e6e34f110aada4172c9dfe2c0ab29f1791aa43",
+        sha256 = "f8b672bf3688dd2865bc3a41437f21db3fddf3d23ae88cb835e923b3da390600",
     ),
     # needed for rules_pkg and java
     RULES_PYTHON = version(
