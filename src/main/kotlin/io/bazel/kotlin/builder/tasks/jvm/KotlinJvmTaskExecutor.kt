@@ -32,7 +32,7 @@ const val X_FRIENDS_PATH_SEPARATOR = ","
 @Singleton
 class KotlinJvmTaskExecutor
   @Inject
-  internal constructor(
+  constructor(
     private val compiler: KotlinToolchain.KotlincInvoker,
     private val plugins: InternalCompilerPlugins,
   ) {

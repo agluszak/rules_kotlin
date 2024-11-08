@@ -26,7 +26,6 @@ import io.bazel.kotlin.builder.toolchain.KotlinToolchain;
 import javax.inject.Singleton;
 
 @Singleton
-@dagger.Component(modules = {KotlinBuilderComponent.Module.class})
 public interface KotlinBuilderTestComponent {
 
     KotlinBuilder kotlinBuilder();

@@ -41,7 +41,7 @@ import javax.inject.Singleton
 @Suppress("MemberVisibilityCanBePrivate")
 class KotlinBuilder
   @Inject
-  internal constructor(
+  constructor(
     private val jvmTaskExecutor: KotlinJvmTaskExecutor,
   ) {
     companion object {
