@@ -61,18 +61,18 @@ versions = struct(
         sha256 = "a9f923be58fbd32670a17f0b729b1df804af882fa57402165741cb26e5440ca1",
     ),
     KOTLIN_CURRENT_COMPILER_RELEASE = version(
-        version = "2.0.10",
+        version = "2.1.0-RC",
         url_templates = [
             "https://github.com/JetBrains/kotlin/releases/download/v{version}/kotlin-compiler-{version}.zip",
         ],
-        sha256 = "88d7d8bad362ae4e114a8b9668c6887b8c85f48e340883db0e317e47c8dc2f4f",
+        sha256 = "865fec904a97e6eb71c5d6b0b5eee855f038664213255ae7de6908af72075c66",
     ),
     KSP_CURRENT_COMPILER_PLUGIN_RELEASE = version(
-        version = "2.0.10-1.0.24",
+        version = "2.1.0-RC-1.0.27",
         url_templates = [
             "https://github.com/google/ksp/releases/download/{version}/artifacts.zip",
         ],
-        sha256 = "e6a79e649ee383b372fa982be89686c10ee42b25e60147b3271a70fd75a9eb19",
+        sha256 = "cce450afa40be58f8ce2c94c66a07e17dd8d4c39e8fe3028ed29f1e69a67dc9e",
     ),
     ANDROID = struct(
         VERSION = "0.1.1",
@@ -94,11 +94,11 @@ versions = struct(
     ),
     # needed for rules_pkg and java
     RULES_KOTLIN = version(
-        version = "2.0.0",
+        version = "2.0.1",
         url_templates = [
-            "https://github.com/bazelbuild/rules_kotlin/releases/download/v{version}/rules_kotlin-v{version}.tar.gz",
+            "https://github.com/agluszak/rules_kotlin/releases/download/v{version}/rules_kotlin-v{version}.tar.gz",
         ],
-        sha256 = "d89723cc9ebbb7bdb2ebaca1af7d2383e074615643cf97a366b758a76b7dc443",
+        sha256 = "b80fe08a2d2726269f916ee1a1b50efd5ffeda61dfd2ad45e23db802ec54613d",
     ),
     # needed for rules_pkg and java
     RULES_PYTHON = version(
