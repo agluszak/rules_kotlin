@@ -6,11 +6,13 @@ import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.fir.analysis.checkers.MppCheckerKind
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirFileChecker
+import org.jetbrains.kotlin.fir.analysis.checkers.declaredMemberScope
 import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.declarations.FirResolvedImport
 import org.jetbrains.kotlin.fir.declarations.fullyExpandedClass
-import org.jetbrains.kotlin.fir.resolve.providers.getClassDeclaredFunctionSymbols
+import org.jetbrains.kotlin.fir.resolve.providers.getRegularClassSymbolByClassId
 import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
+import org.jetbrains.kotlin.fir.scopes.getFunctions
 import org.jetbrains.kotlin.fir.symbols.impl.FirAnonymousObjectSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
@@ -57,9 +59,12 @@ private fun FirResolvedImport.resolveToFun(context: CheckerContext): FirCallable
   if (topLevelFun != null) return topLevelFun
 
   val parentClassId = resolvedParentClassId ?: return null
-  return context.session.symbolProvider
-    .getClassDeclaredFunctionSymbols(parentClassId, funName)
-    .firstOrNull()
+
+  val classLikeSymbol =
+    context.session.symbolProvider.getClassLikeSymbolByClassId(parentClassId) ?: return null
+  classLikeSymbol
+  return context.session.getRegularClassSymbolByClassId(parentClassId)
+    ?.declaredMemberScope(context)?.getFunctions(funName)?.firstOrNull()
 }
 
 private fun FirResolvedImport.classId(): ClassId? {

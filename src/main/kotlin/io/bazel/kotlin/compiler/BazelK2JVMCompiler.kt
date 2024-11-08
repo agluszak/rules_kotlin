@@ -29,9 +29,10 @@ class BazelK2JVMCompiler {
   ): ExitCode {
     System.setProperty("zip.handler.uses.crc.instead.of.timestamp", "true")
     val delegate: K2JVMCompiler = K2JVMCompiler()
-    val arguments = delegate.createArguments().also { delegate.parseArguments(args, it) }
-    val collector =
-      PrintingMessageCollector(errStream, MessageRenderer.PLAIN_RELATIVE_PATHS, arguments.verbose)
-    return delegate.exec(collector, Services.EMPTY, arguments)
+//    val arguments = delegate.createArguments().also { delegate.parseArguments(args, it) }
+//    val collector =
+//      PrintingMessageCollector(errStream, MessageRenderer.PLAIN_RELATIVE_PATHS, arguments.verbose)
+//    return delegate.exec(collector, Services.EMPTY, arguments)
+    return delegate.exec(errStream, *args)
   }
 }
