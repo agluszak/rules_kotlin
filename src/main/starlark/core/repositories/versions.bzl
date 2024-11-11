@@ -94,11 +94,11 @@ versions = struct(
     ),
     # needed for rules_pkg and java
     RULES_KOTLIN = version(
-        version = "2.1.2",
+        version = "2.1.3",
         url_templates = [
             "https://github.com/agluszak/rules_kotlin/releases/download/v{version}/rules_kotlin-v{version}.tar.gz",
         ],
-        sha256 = "dd3ea6253cf008916d93274ffb5a3f331355f226798473de6b01da64ab9ed77a",
+        sha256 = "82d642db956a418ed4ce07c44b6999dd5e8ccce4bd7c247671b5c50674d46405",
     ),
     # needed for rules_pkg and java
     RULES_PYTHON = version(
