@@ -20,15 +20,27 @@ kt_jvm_library(
     exported_compiler_plugins = [":serialization_plugin"],
     exports = [
         "@maven//:org_jetbrains_kotlinx_kotlinx_serialization_core_jvm",
+        "@maven//:org_jetbrains_kotlinx_kotlinx_serialization_json_jvm",
+
     ],
 )
 
 kt_jvm_library(
     name = "data",
     srcs = ["Data.kt"],
+    plugins = [":serialization_plugin"],
     deps = [
-        ":kotlin_serialization",
+        ":another_data",
     ],
+)
+
+kt_jvm_library(
+    name = "another_data",
+    srcs = ["AnotherData.kt"],
+    plugins = [":serialization_plugin"],
+    deps = [
+        "@maven//:org_jetbrains_kotlinx_kotlinx_serialization_json_jvm",
+    ]
 )
 
 kt_jvm_test(
@@ -36,7 +48,9 @@ kt_jvm_test(
     srcs = ["SerializationTest.kt"],
     test_class = "plugin.serialization.SerializationTest",
     deps = [
-        ":data",
         "@maven//:junit_junit",
+        ":another_data",
+        ":data",
     ],
+    plugins = [":serialization_plugin"],
 )
