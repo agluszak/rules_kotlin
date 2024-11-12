@@ -35,16 +35,8 @@ versions = struct(
     SKYLIB_SHA = "66ffd9315665bfaafc96b52278f57c7e2dd09f5ede279ea6d39b2be471e7e3aa",
     PROTOBUF_VERSION = "3.11.3",
     PROTOBUF_SHA = "cf754718b0aa945b00550ed7962ddc167167bd922b842199eeb6505e6f344852",
-    RULES_JVM_EXTERNAL_TAG = "5.3",
-    RULES_JVM_EXTERNAL_SHA = "d31e369b854322ca5098ea12c69d7175ded971435e55c18dd9dd5f29cc5249ac",
-    RULES_PROTO = version(
-        version = "5.3.0-21.7",
-        sha256 = "dc3fb206a2cb3441b485eb1e423165b231235a1ea9b031b4433cf7bc1fa460dd",
-        strip_prefix_template = "rules_proto-{version}",
-        url_templates = [
-            "https://github.com/bazelbuild/rules_proto/archive/refs/tags/{version}.tar.gz",
-        ],
-    ),
+    RULES_JVM_EXTERNAL_TAG = "6.4",
+    RULES_JVM_EXTERNAL_SHA = "85776be6d8fe64abf26f463a8e12cd4c15be927348397180a01693610da7ec90",
     IO_BAZEL_STARDOC = version(
         version = "0.5.6",
         sha256 = "dfbc364aaec143df5e6c52faf1f1166775a5b4408243f445f44b661cfdc3134f",
@@ -61,18 +53,18 @@ versions = struct(
         sha256 = "a9f923be58fbd32670a17f0b729b1df804af882fa57402165741cb26e5440ca1",
     ),
     KOTLIN_CURRENT_COMPILER_RELEASE = version(
-        version = "2.0.10",
+        version = "2.0.21",
         url_templates = [
             "https://github.com/JetBrains/kotlin/releases/download/v{version}/kotlin-compiler-{version}.zip",
         ],
-        sha256 = "88d7d8bad362ae4e114a8b9668c6887b8c85f48e340883db0e317e47c8dc2f4f",
+        sha256 = "0352c0a45bd22f80f6b26e485cd04da8047baa5de54865281fb9f89a4a7bcf2a",
     ),
     KSP_CURRENT_COMPILER_PLUGIN_RELEASE = version(
-        version = "2.0.10-1.0.24",
+        version = "2.0.21-1.0.27",
         url_templates = [
             "https://github.com/google/ksp/releases/download/{version}/artifacts.zip",
         ],
-        sha256 = "e6a79e649ee383b372fa982be89686c10ee42b25e60147b3271a70fd75a9eb19",
+        sha256 = "a46c8af11cbad1e5c50cb065edfe759871b700f0db0e30a932668d38b1eab0d3",
     ),
     ANDROID = struct(
         VERSION = "0.1.1",
@@ -118,12 +110,12 @@ versions = struct(
         sha256 = "eb7db63ed826567b2ceb1ec53d6b729e01636f72c9f5dfb6d2dfe55ad69d1d2a",
     ),
     RULES_LICENSE = version(
-        version = "0.0.3",
+        version = "1.0.0",
         url_templates = [
             "https://mirror.bazel.build/github.com/bazelbuild/rules_license/releases/download/{version}/rules_license-{version}.tar.gz",
             "https://github.com/bazelbuild/rules_license/releases/download/{version}/rules_license-{version}.tar.gz",
         ],
-        sha256 = None,
+        sha256 = "26d4021f6898e23b82ef953078389dd49ac2b5618ac564ade4ef87cced147b38",
     ),
     RULES_TESTING = version(
         version = "0.5.0",
@@ -152,6 +144,13 @@ versions = struct(
             "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-serialization-json-jvm/{version}/kotlinx-serialization-json-jvm-{version}.jar",
         ],
         sha256 = "d3234179bcff1886d53d67c11eca47f7f3cf7b63c349d16965f6db51b7f3dd9a",
+    ),
+    BAZEL_WORKER_JAVA = version(
+        version = "0.0.2",
+        url_templates = [
+            "https://github.com/bazelbuild/bazel-worker-api/releases/download/v{version}/bazel-worker-api-v{version}.tar.gz",
+        ],
+        sha256 = "19e8618ce876970876c914589dc45cacf8c58887d55c7987a4ce751158d9e7a7",
     ),
     use_repository = _use_repository,
 )
