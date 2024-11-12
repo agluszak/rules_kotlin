@@ -299,11 +299,8 @@ private fun JvmCompilationTask.runKspPlugin(
   return context.execute("Ksp (${inputs.processorsList.joinToString(", ")})") {
     val overrides =
       mutableMapOf(
-        API_VERSION_ARG to kspKotlinToolchainVersion(info.toolchainInfo.common.apiVersion),
-        LANGUAGE_VERSION_ARG to
-          kspKotlinToolchainVersion(
-            info.toolchainInfo.common.languageVersion,
-          ),
+        API_VERSION_ARG to info.toolchainInfo.common.apiVersion,
+        LANGUAGE_VERSION_ARG to info.toolchainInfo.common.languageVersion
       )
     baseArgs(overrides)
       .plus(kspArgs(plugins))
@@ -326,11 +323,6 @@ private fun JvmCompilationTask.runKspPlugin(
         return@let expandWithGeneratedSources()
       }
   }
-}
-
-private fun kspKotlinToolchainVersion(version: String): String {
-  // KSP doesn't support Kotlin 2.0 yet, so we need to use 1.9
-  return if (version.toFloat() >= 2.0) "1.9" else version
 }
 
 /**
