@@ -1,7 +1,12 @@
-module(name = "trival-example")
+module(name = "trivial-example")
 
 bazel_dep(name = "rules_java", version = "8.9.0")
-bazel_dep(name = "rules_kotlin", version = "1.9.5")
+bazel_dep(name = "rules_kotlin")
+local_path_override(
+    module_name = "rules_kotlin",
+    path = "../..",
+)
+
 bazel_dep(name = "rules_jvm_external", version = "6.6")
 bazel_dep(name = "rules_shell", version = "0.4.0")
 

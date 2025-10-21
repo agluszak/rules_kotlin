@@ -1,0 +1,58 @@
+load("@bazel_binaries//:defs.bzl", "bazel_binaries")
+load(
+    "@rules_bazel_integration_test//bazel_integration_test:defs.bzl",
+    "integration_test_utils",
+)
+load(":example_infos.bzl", "example_infos")
+
+sh_binary(
+    name = "test_runner",
+    testonly = True,
+    srcs = ["test_runner.sh"],
+    data = [
+        "@rules_bazel_integration_test//tools:create_scratch_dir",
+    ],
+    deps = [
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+)
+
+# MARK: - Integration Tests
+
+_all_examples = example_infos.make_all(bazel_binaries.versions.all)
+
+[
+    example_infos.bazel_integration_test(ei, bazel_binaries)
+    for ei in _all_examples
+]
+
+_smoke_test_names = [
+    example_infos.test_name(
+        ei.name,
+        bazel_binaries.versions.current,
+    )
+    for ei in _all_examples
+]
+
+_all_test_names = [
+    example_infos.test_name(
+        ei.name,
+        version,
+    )
+    for ei in _all_examples
+    for version in ei.versions
+]
+
+test_suite(
+    name = "smoke_integration_tests",
+    tags = integration_test_utils.DEFAULT_INTEGRATION_TEST_TAGS,
+    tests = _smoke_test_names,
+    visibility = ["//:__subpackages__"],
+)
+
+test_suite(
+    name = "all_integration_tests",
+    tags = integration_test_utils.DEFAULT_INTEGRATION_TEST_TAGS,
+    tests = _all_test_names,
+    visibility = ["//:__subpackages__"],
+)

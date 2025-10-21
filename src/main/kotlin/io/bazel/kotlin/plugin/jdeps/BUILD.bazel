@@ -52,3 +52,9 @@ java_binary(
         ":jdeps-gen-services",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

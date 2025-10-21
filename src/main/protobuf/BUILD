@@ -33,3 +33,9 @@ java_library(
         ":worker_protocol_java_proto",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["*"]),
+    visibility = ["//:__subpackages__"],
+)

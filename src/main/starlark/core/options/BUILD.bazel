@@ -19,3 +19,9 @@ bzl_library(
         "@com_github_jetbrains_kotlin//:capabilities",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["*"]),
+    visibility = ["//:__subpackages__"],
+)

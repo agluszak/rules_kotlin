@@ -95,3 +95,9 @@ release_archive(
         "BUILD.release.bazel": "BUILD.bazel",
     },
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["*"]),
+    visibility = ["//:__subpackages__"],
+)

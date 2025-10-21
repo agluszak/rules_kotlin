@@ -1,4 +1,4 @@
-module(name = "multiplex-example")
+module(name = "dagger-example")
 
 bazel_dep(name = "rules_java", version = "8.9.0")
 bazel_dep(name = "rules_kotlin")
@@ -8,14 +8,18 @@ local_path_override(
 )
 
 
+bazel_dep(name = "bazel_skylib", version = "1.7.1")
 bazel_dep(name = "rules_jvm_external", version = "6.6")
 
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     name = "maven_rules_kotlin_example",
     artifacts = [
-        "junit:junit:4.13.2",
-        "org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.0.1",
+        "com.google.dagger:dagger:2.56.2",
+        "com.google.dagger:dagger-compiler:2.56.2",
+        "com.google.dagger:dagger-producers:2.56.2",
+        "javax.inject:javax.inject:1",
+        "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2",
     ],
     repositories = [
         "https://repo1.maven.org/maven2",

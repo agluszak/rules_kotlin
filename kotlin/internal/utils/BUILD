@@ -31,3 +31,9 @@ bzl_library(
     srcs = glob(["*.bzl"]),
     visibility = ["//kotlin:__subpackages__"],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["*"]),
+    visibility = ["//:__subpackages__"],
+)

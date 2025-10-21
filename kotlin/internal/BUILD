@@ -49,3 +49,9 @@ bzl_library(
         "@rules_java//java/private:proto_support",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["*"]),
+    visibility = ["//:__subpackages__"],
+)

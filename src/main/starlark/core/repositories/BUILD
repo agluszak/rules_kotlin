@@ -44,3 +44,9 @@ bzl_library(
         "@bazel_skylib//lib:versions",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["*"]),
+    visibility = ["//:__subpackages__"],
+)

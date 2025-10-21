@@ -18,6 +18,7 @@ load("//src/main/starlark/release:packager.bzl", "release_archive")
 
 exports_files([
     "scripts/noop.sh",
+    "MODULE.bazel",
 ])
 
 filegroup(
@@ -59,11 +60,10 @@ test_suite(
 release_archive(
     name = "rules_kotlin_release",
     srcs = [
-        "WORKSPACE.bzlmod",
+        "MODULE.bazel",
     ],
     src_map = {
         "BUILD.release.bazel": "BUILD.bazel",
-        "MODULE.release.bazel": "MODULE.bazel",
     },
     deps = [
         "//kotlin:pkg",
@@ -81,6 +81,56 @@ filegroup(
         ":rules_kotlin_release",
     ],
     visibility = ["//:__subpackages__"],
+)
+
+# This target collects all of the parent workspace files needed by the child workspaces.
+# Integration tests use local_path_override(path = "../..") to reference the parent workspace,
+# so they need access to all source BUILD files and .bzl files.
+filegroup(
+    name = "runtime_files",
+    srcs = [
+        "BUILD",
+        "MODULE.bazel",
+        "kotlin_rules_maven_install.json",
+        # kotlin/
+        "//kotlin:all_files",
+        "//kotlin/compiler:all_files",
+        "//kotlin/internal:all_files",
+        "//kotlin/internal/jvm:all_files",
+        "//kotlin/internal/lint:all_files",
+        "//kotlin/internal/utils:all_files",
+        "//kotlin/settings:all_files",
+        # src/main/starlark/
+        "//src/main/starlark:all_files",
+        "//src/main/starlark/core:all_files",
+        "//src/main/starlark/core/compile:all_files",
+        "//src/main/starlark/core/compile/cli:all_files",
+        "//src/main/starlark/core/options:all_files",
+        "//src/main/starlark/core/plugin:all_files",
+        "//src/main/starlark/core/repositories:all_files",
+        "//src/main/starlark/core/repositories/kotlin:all_files",
+        "//src/main/starlark/release_archive:all_files",
+        "//src/main/starlark/release:all_files",
+        # src/main/kotlin/
+        "//src/main/kotlin:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/builder:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/builder/cmd:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/builder/tasks:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/builder/toolchain:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/builder/utils:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/builder/utils/jars:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/compiler:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/generate:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/plugin:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/plugin/jdeps:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/test:all_files",
+        "//src/main/kotlin/io/bazel/worker:all_files",
+        # src/main/protobuf/
+        "//src/main/protobuf:all_files",
+        # third_party/
+        "//third_party:all_files",
+    ],
+    visibility = ["//examples:__pkg__"],
 )
 
 buildifier(

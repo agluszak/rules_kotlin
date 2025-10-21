@@ -48,3 +48,9 @@ release_archive(
         "//src/main/kotlin/io/bazel/kotlin/compiler:pkg",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["*"]),
+    visibility = ["//:__subpackages__"],
+)

@@ -37,3 +37,9 @@ kapt_compiler_plugin(
     name = "kapt",
     id = "org.jetbrains.kotlin.kapt3",
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["*"]),
+    visibility = ["//:__subpackages__"],
+)

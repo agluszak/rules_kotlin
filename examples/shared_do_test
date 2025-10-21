@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+set -o errexit -o nounset -o pipefail
+
+ Use the Bazel binary specified by the integration test. Otherise, fall back 
+# to bazel.
+bazel="${BIT_BAZEL_BINARY:-bazel}"
+
+# Share repository cache across tests to reduce disk space usage
+# See https://github.com/bazel-contrib/rules_bazel_integration_test/issues/527
+cache_args=(
+  "--repository_cache=${HOME}/.cache/bazel/repository_cache"
+  "--repo_contents_cache=${HOME}/.cache/bazel/repo_contents_cache"
+)
+
+# Build everything
+"${bazel}" build "${cache_args[@]}" //...
+
+# Run tests if any exist
+# Only ignore "no tests found" error, not actual test failures
+if "${bazel}" query 'tests(//...)' &>/dev/null; then
+  "${bazel}" test "${cache_args[@]}" //...
+fi

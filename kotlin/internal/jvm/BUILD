@@ -35,3 +35,9 @@ bzl_library(
         "@rules_java//java:rules",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["*"]),
+    visibility = ["//:__subpackages__"],
+)

@@ -20,3 +20,9 @@ bzl_library(
         "//visibility:public",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["*"]),
+    visibility = ["//:__subpackages__"],
+)
