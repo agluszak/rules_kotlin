@@ -1,0 +1,25 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_test")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+
+# A shell script that will be used as a non-Java runtime_dep
+sh_binary(
+    name = "helper",
+    srcs = ["helper.sh"],
+)
+
+# Test kt_jvm_binary with non-Java runtime_dep (issue #1243)
+kt_jvm_binary(
+    name = "uses_sh_runtime_dep",
+    srcs = ["Main.kt"],
+    main_class = "non_java_runtime_deps.MainKt",
+    runtime_deps = [":helper"],
+)
+
+# Also test with kt_jvm_test for parity
+kt_jvm_test(
+    name = "test_sh_runtime_dep",
+    srcs = ["Main.kt"],
+    main_class = "non_java_runtime_deps.MainKt",
+    runtime_deps = [":helper"],
+    test_class = "non_java_runtime_deps.MainKt",
+)

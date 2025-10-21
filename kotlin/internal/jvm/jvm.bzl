@@ -186,10 +186,10 @@ _common_attr = utils.add_dicts(
             allow_files = False,
         ),
         "runtime_deps": attr.label_list(
-            doc = """Libraries to make available to the final binary or test at runtime only. Like ordinary deps, these will
-        appear on the runtime classpath, but unlike them, not on the compile-time classpath.""",
+            doc = """Libraries to make available to the final binary or test at runtime only. Java targets are added to the
+        runtime classpath; non-Java targets (e.g. sh_binary, cc_binary) are added to runfiles and available at runtime.""",
             default = [],
-            allow_files = False,
+            allow_files = True,  # Allow files/outputs from genrule, etc.
         ),
         "resources": attr.label_list(
             doc = """A list of files that should be include in a Java jar.""",

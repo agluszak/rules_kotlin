@@ -1,0 +1,27 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_test")
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+
+# Native library for JNI - must be a shared library (cc_binary with linkshared)
+cc_binary(
+    name = "libnative_greeter.so",
+    srcs = ["native_greeter.cc"],
+    linkshared = True,
+    deps = ["@bazel_tools//tools/jdk:jni"],
+)
+
+# Test kt_jvm_binary with cc_binary (JNI shared library) as runtime_dep (issue #1243)
+kt_jvm_binary(
+    name = "jni_binary",
+    srcs = ["NativeGreeter.kt"],
+    main_class = "jni_runtime_deps.NativeGreeterKt",
+    runtime_deps = [":libnative_greeter.so"],
+)
+
+# Also test with kt_jvm_test for parity
+kt_jvm_test(
+    name = "jni_test",
+    srcs = ["NativeGreeter.kt"],
+    main_class = "jni_runtime_deps.NativeGreeterKt",
+    runtime_deps = [":libnative_greeter.so"],
+    test_class = "jni_runtime_deps.NativeGreeterKt",
+)

@@ -60,7 +60,8 @@ def _jvm_deps(ctx, toolchains, associate_deps, deps = [], deps_java_infos = [], 
         exports = [_java_info(d) for d in exports],
         associate_jars = associates.jars,
         compile_jars = depset(direct = compile_depset_list_filtered),
-        runtime_deps = [_java_info(d) for d in runtime_deps],
+        # Filter out non-Java runtime deps - they'll be included in runfiles separately
+        runtime_deps = [info for info in [_java_info(d) for d in runtime_deps] if info != None],
     )
 
 jvm_deps_utils = struct(
