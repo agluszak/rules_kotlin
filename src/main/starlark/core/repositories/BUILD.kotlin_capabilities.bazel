@@ -33,3 +33,15 @@ alias(
     )
     for (label, file) in KOTLINC_ARTIFACT_LIST.items()
 ]
+
+# Special aliases for jars handled by introspected kotlin_repo_build.bzl
+# These targets may be empty (Kotlin 2.2+) or contain the jar (Kotlin 2.1.x)
+alias(
+    name = "trove4j",
+    actual = "@$git_repo$//:trove4j",
+)
+
+alias(
+    name = "kotlin-annotation-processing-compiler",
+    actual = "@$git_repo$//:kotlin-annotation-processing-compiler",
+)

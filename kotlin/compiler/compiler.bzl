@@ -63,3 +63,19 @@ def kt_configure_compiler():
 
     _import_artifacts(KOTLINC_ARTIFACTS.jvm, kt_jvm_import)
     _import_artifacts(KOTLINC_ARTIFACTS.core, kt_jvm_import)
+
+    # Special handling for optional jars that may not exist in all Kotlin versions:
+    # These are defined in the introspected kotlin_repo_build.bzl and may be empty
+    # (Kotlin 2.2+) or contain the jar (Kotlin 2.1.x and earlier).
+    # We just create aliases to the external repo targets.
+    native.alias(
+        name = "trove4j",
+        actual = "@%s//:trove4j" % _KT_COMPILER_REPO,
+        visibility = ["//visibility:public"],
+    )
+
+    native.alias(
+        name = "kotlin-annotation-processing-compiler",
+        actual = "@%s//:kotlin-annotation-processing-compiler" % _KT_COMPILER_REPO,
+        visibility = ["//visibility:public"],
+    )

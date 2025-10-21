@@ -22,6 +22,7 @@ release_archive(
         "BUILD.kotlin_capabilities.bazel",
         "bzlmod_impl.bzl",
         "compiler.bzl",
+        "kotlin_repo_build.bzl.tpl",
         "ksp.bzl",
         "versions.bzl",
     ],
@@ -34,6 +35,10 @@ release_archive(
         "//src/main/starlark/core/repositories/kotlin:pkg",
     ],
 )
+
+exports_files([
+    "kotlin_repo_build.bzl.tpl",
+])
 
 bzl_library(
     name = "repositories",

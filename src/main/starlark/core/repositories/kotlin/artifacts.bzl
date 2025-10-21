@@ -49,7 +49,9 @@ KOTLINC_ARTIFACTS = struct(
             "annotations": "lib/annotations-13_0.jar",
             "kotlin-annotation-processing": "lib/kotlin-annotation-processing.jar",
             "kotlin-annotation-processing-cli": "lib/kotlin-annotation-processing-cli.jar",
-            "kotlin-annotation-processing-compiler": "lib/kotlin-annotation-processing-compiler.jar",
+            # NOTE: kotlin-annotation-processing-compiler removed - it's now handled by the introspected
+            # kotlin_repo_build.bzl which creates it conditionally (present in 2.1.x, absent in 2.2+)
+            # "kotlin-annotation-processing-compiler": "lib/kotlin-annotation-processing-compiler.jar",
             "kotlin-annotation-processing-runtime": "lib/kotlin-annotation-processing-runtime.jar",
             "kotlin-annotations-jvm": "lib/kotlin-annotations-jvm.jar",
             "kotlin-annotations-jvm-sources": "lib/kotlin-annotations-jvm-sources.jar",
@@ -65,7 +67,9 @@ KOTLINC_ARTIFACTS = struct(
             "kotlinx-coroutines-core-jvm": "lib/kotlinx-coroutines-core-jvm.jar",
             "parcelize-compiler": "lib/parcelize-compiler.jar",
             "scripting-compiler": "lib/scripting-compiler.jar",
-            "trove4j": "lib/trove4j.jar",
+            # NOTE: trove4j removed from here - it's now handled by the introspected
+            # kotlin_repo_build.bzl which creates it conditionally (present in 2.1.x, absent in 2.2+)
+            # "trove4j": "lib/trove4j.jar",
         },
     ),
 )
