@@ -17,6 +17,7 @@ load("//kotlin/internal/utils:generate_jvm_service.bzl", "generate_jvm_service")
 load("//src/main/kotlin:bootstrap.bzl", "kt_bootstrap_library")
 
 # The compiler binary, this is co-located in the kotlin compiler classloader.
+# Enable context parameters for Kotlin 2.2+ FIR checker API
 kt_bootstrap_library(
     name = "jdeps-gen-lib",
     srcs = glob([
@@ -32,6 +33,7 @@ kt_bootstrap_library(
         "//src/main/protobuf:deps_java_proto",
         "@kotlin_rules_maven//:com_google_protobuf_protobuf_java",
     ],
+    kotlinc_opts = {"-Xcontext-parameters": ""},
 )
 
 # services to integrate with the plugin.

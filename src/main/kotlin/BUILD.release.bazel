@@ -84,7 +84,6 @@ java_binary(
         "@com_github_jetbrains_kotlin//:kotlin-stdlib-jdk7",
         "@com_github_jetbrains_kotlin//:kotlin-stdlib-jdk8",
         "@com_github_jetbrains_kotlin//:kotlinx-coroutines-core-jvm",
-        "@com_github_jetbrains_kotlin//:trove4j",
     ],
     jvm_flags = [
         "-XX:-MaxFDLimit",
