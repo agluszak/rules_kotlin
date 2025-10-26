@@ -16,10 +16,20 @@
 package io.bazel.kotlin.compiler;
 
 import io.bazel.kotlin.builder.toolchain.KotlinToolchain;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.regex.Pattern;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -30,6 +40,9 @@ import static com.google.common.truth.Truth.assertWithMessage;
  */
 @RunWith(JUnit4.class)
 public class BuildToolsAPICompilerTest {
+    @Rule
+    public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
     // Kotlin version pattern: major.minor.patch[-qualifier]
     // Examples: "2.1.0", "2.2.0-Beta1", "2.0.20-RC2"
     private static final Pattern VERSION_PATTERN = Pattern.compile(
@@ -135,5 +148,72 @@ public class BuildToolsAPICompilerTest {
         assertWithMessage("Second call should be faster due to caching. First: " + duration1 + "ns, Second: " + duration2 + "ns")
             .that(duration2 < duration1)
             .isTrue();
+    }
+
+    @Test
+    public void testIncrementalCompilation_createsCache() throws Exception {
+        KotlinToolchain toolchain = KotlinToolchain.createToolchain();
+        BuildToolsAPICompiler compiler = new BuildToolsAPICompiler(
+            toolchain.getKotlinCompilerJar(),
+            toolchain.getBuildToolsImplJar(),
+            toolchain.getKotlinxSerializationJars()
+        );
+
+        // Create temporary directories
+        File sourceFile = temporaryFolder.newFile("Test.kt");
+        File outputJar = temporaryFolder.newFile("output.jar");
+        File icCacheDir = temporaryFolder.newFolder("ic_cache");
+
+        // Write simple Kotlin source
+        Files.write(sourceFile.toPath(), Arrays.asList(
+            "fun main() {",
+            "    println(\"Hello IC\")",
+            "}"
+        ));
+
+        // Prepare compiler arguments
+        String[] args = new String[] {
+            "-d", outputJar.getAbsolutePath(),
+            "-module-name", "test_module",
+            "-jvm-target", "11",
+            "-no-stdlib",
+            sourceFile.getAbsolutePath()
+        };
+
+        // Compile with IC enabled
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        PrintStream printStream = new PrintStream(out);
+
+        int exitCode = compiler.compile(
+            args,
+            printStream,
+            icCacheDir,
+            Collections.emptyList()
+        );
+
+        // Verify compilation succeeded
+        assertWithMessage("Compilation should succeed, output: " + out.toString())
+            .that(exitCode)
+            .isEqualTo(0);
+
+        // Verify output jar was created
+        assertWithMessage("Output jar should be created")
+            .that(outputJar.exists())
+            .isTrue();
+
+        // Verify IC cache directory was used (should have classpath snapshot)
+        File snapshotFile = new File(icCacheDir, "shrunk-classpath-snapshot.bin");
+        assertWithMessage("IC cache snapshot should be created at: " + snapshotFile.getAbsolutePath())
+            .that(snapshotFile.exists())
+            .isTrue();
+
+        // Verify IC cache directory has contents
+        File[] cacheContents = icCacheDir.listFiles();
+        assertWithMessage("IC cache should not be empty")
+            .that(cacheContents)
+            .isNotNull();
+        assertWithMessage("IC cache should have files")
+            .that(cacheContents.length)
+            .isGreaterThan(0);
     }
 }

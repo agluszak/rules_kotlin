@@ -71,6 +71,31 @@ public class KotlinBuilderJvmBasicTest {
     }
 
     @Test
+    public void testIncrementalCompilationCreatesCache() {
+        ctx.runCompileTask(
+                c -> {
+                    c.compileKotlin();
+                    c.enableIncrementalCompilation();
+                    c.addSource(
+                            "TestClass.kt",
+                            "package test",
+                            "class TestClass {",
+                            "  fun greet() = \"Hello IC\"",
+                            "}"
+                    );
+                    c.outputJar();
+                    c.outputJdeps();
+                });
+
+        // Verify compilation succeeded and class was generated
+        ctx.assertFilesExist(DirectoryType.CLASSES, "test/TestClass.class");
+
+        // Verify IC cache was created
+        assertThat(ctx.icCacheExists())
+                .isTrue();
+    }
+
+    @Test
     public void testGeneratesJDeps() {
         ctx.runCompileTask(
                 c -> {

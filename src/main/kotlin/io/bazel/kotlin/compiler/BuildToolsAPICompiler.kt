@@ -20,10 +20,13 @@ import org.jetbrains.kotlin.buildtools.api.CompilationService
 import org.jetbrains.kotlin.buildtools.api.ExperimentalBuildToolsApi
 import org.jetbrains.kotlin.buildtools.api.KotlinLogger
 import org.jetbrains.kotlin.buildtools.api.ProjectId
-import org.jetbrains.kotlin.buildtools.api.SharedApiClassesClassLoader  // Top-level function
+import org.jetbrains.kotlin.buildtools.api.SharedApiClassesClassLoader
+import org.jetbrains.kotlin.buildtools.api.SourcesChanges
+import org.jetbrains.kotlin.buildtools.api.jvm.ClasspathSnapshotBasedIncrementalCompilationApproachParameters
 import java.io.File
 import java.io.PrintStream
 import java.net.URLClassLoader
+import java.nio.file.Files
 import java.util.UUID
 
 /**
@@ -36,7 +39,7 @@ import java.util.UUID
  * ## Classloader Isolation
  *
  * Following the official kotlin-maven-plugin pattern, this implementation:
- * 1. Creates an isolated URLClassLoader containing only kotlin-build-tools-impl.jar
+ * 1. Creates an isolated URLClassLoader containing kotlin-build-tools-impl.jar and compiler dependencies
  * 2. Uses SharedApiClassesClassLoader() as parent for proper API class sharing
  * 3. Loads CompilationService via ServiceLoader in this isolated environment
  *
@@ -51,13 +54,17 @@ import java.util.UUID
  *
  * @param kotlinCompilerJar Path to the kotlin-compiler jar file
  * @param buildToolsImplJar Path to the kotlin-build-tools-impl jar file
+ * @param additionalClasspath Additional JARs needed in compiler classpath (e.g., kotlinx.serialization for KSP)
  * @see <a href="https://github.com/JetBrains/kotlin/tree/master/compiler/build-tools/kotlin-build-tools-api">BTAPI Documentation</a>
  * @see org.jetbrains.kotlin.maven.K2JVMCompileMojo#getCompilationService
  */
 @Suppress("unused")
-class BuildToolsAPICompiler(
+class BuildToolsAPICompiler
+@JvmOverloads
+constructor(
   private val kotlinCompilerJar: File,
   private val buildToolsImplJar: File,
+  private val additionalClasspath: List<File> = emptyList(),
 ) {
   /**
    * Cached CompilationService instance to avoid repeated classloader creation.
@@ -68,16 +75,16 @@ class BuildToolsAPICompiler(
     System.setProperty("zip.handler.uses.crc.instead.of.timestamp", "true")
 
     // Create isolated classloader following the official Maven plugin pattern:
-    // URLClassLoader with kotlin-build-tools-impl.jar + kotlin-compiler.jar (which includes stdlib)
+    // URLClassLoader with kotlin-build-tools-impl.jar + kotlin-compiler.jar + additional dependencies
     // Parent is SharedApiClassesClassLoader for proper API class sharing
     val urls =
-      arrayOf(
-        buildToolsImplJar.toURI().toURL(),
-        kotlinCompilerJar.toURI().toURL(),
-      )
+      (listOf(buildToolsImplJar, kotlinCompilerJar) + additionalClasspath)
+        .map { it.toURI().toURL() }
+        .toTypedArray()
     val btapiClassLoader = URLClassLoader(urls, SharedApiClassesClassLoader())
     CompilationService.loadImplementation(btapiClassLoader)
   }
+
   /**
    * Get the Kotlin compiler version from the Build Tools API.
    *
@@ -100,8 +107,24 @@ class BuildToolsAPICompiler(
   fun compile(
     args: Array<String>,
     out: PrintStream,
+  ): Int = compile(args, out, null, emptyList())
+
+  /**
+   * Compile with optional incremental compilation support.
+   *
+   * @param args Compiler arguments
+   * @param out Output stream for compiler messages
+   * @param icWorkingDirectory Working directory for IC caches (enables IC if non-null)
+   * @param classpathEntries Classpath entries for snapshot generation (used when IC enabled)
+   * @return Exit code (0 for success, non-zero for failure)
+   */
+  fun compile(
+    args: Array<String>,
+    out: PrintStream,
+    icWorkingDirectory: File?,
+    classpathEntries: List<File>,
   ): Int {
-    val result = exec(out, *args)
+    val result = exec(out, icWorkingDirectory, classpathEntries, *args)
     // Map BTAPI CompilationResult to exit codes matching K2JVMCompiler convention
     return when (result) {
       CompilationResult.COMPILATION_SUCCESS -> 0
@@ -115,14 +138,28 @@ class BuildToolsAPICompiler(
   fun exec(
     errStream: PrintStream,
     vararg args: String,
-  ): CompilationResult {
-    // Use the cached compilationService for optimal performance
+  ): CompilationResult = exec(errStream, null, emptyList(), *args)
 
-    // Parse arguments to extract source files and module name for better integration
+  /**
+   * Compile with optional incremental compilation support.
+   *
+   * @param errStream Output stream for compiler messages
+   * @param icWorkingDirectory Working directory for IC caches (enables IC if non-null)
+   * @param classpathEntries Classpath entries for snapshot generation (used when IC enabled)
+   * @param args Compiler arguments
+   * @return CompilationResult indicating success or failure
+   */
+  @OptIn(ExperimentalBuildToolsApi::class)
+  fun exec(
+    errStream: PrintStream,
+    icWorkingDirectory: File?,
+    classpathEntries: List<File>,
+    vararg args: String,
+  ): CompilationResult {
+    // Parse arguments to extract source files and module name
     val parsedArgs = parseArguments(args.toList())
 
-    // Create stable ProjectId based on module name (instead of random UUID)
-    // This enables proper resource management and future incremental compilation support
+    // Create stable ProjectId based on module name
     val projectId =
       ProjectId.ProjectUUID(
         UUID.nameUUIDFromBytes(parsedArgs.moduleName.toByteArray()),
@@ -134,31 +171,84 @@ class BuildToolsAPICompiler(
         .makeCompilerExecutionStrategyConfiguration()
         .useInProcessStrategy()
 
-    // Configure JVM compilation with custom logger for better diagnostics
+    // Configure JVM compilation with custom logger
     val compilationConfig =
       compilationService
         .makeJvmCompilationConfiguration()
         .useLogger(BazelKotlinLogger(errStream, parsedArgs.moduleName))
 
+    // Enable incremental compilation if working directory is provided
+    if (icWorkingDirectory != null) {
+      try {
+        Files.createDirectories(icWorkingDirectory.toPath())
+
+        // Create IC configuration following Maven plugin pattern
+        val icConf = compilationConfig.makeClasspathSnapshotBasedIncrementalCompilationConfiguration()
+        val classpathSnapshotParams =
+          ClasspathSnapshotBasedIncrementalCompilationApproachParameters(
+            emptyList(), // No explicit classpath changes
+            File(icWorkingDirectory, "shrunk-classpath-snapshot.bin"),
+          )
+
+        compilationConfig.useIncrementalCompilation(
+          icWorkingDirectory,
+          SourcesChanges.ToBeCalculated, // Auto-detect source changes (Kotlin object)
+          classpathSnapshotParams,
+          icConf,
+        )
+
+        if (BazelKotlinLogger(errStream, parsedArgs.moduleName).isDebugEnabled) {
+          errStream.println("Incremental compilation enabled: workingDir=$icWorkingDirectory")
+        }
+      } catch (e: Throwable) {
+        // If IC setup fails, fall back to non-incremental compilation
+        errStream.println("Warning: Failed to enable incremental compilation: ${e.message}")
+        errStream.println("Falling back to non-incremental compilation")
+        e.printStackTrace(errStream)
+      }
+    }
+
     return try {
       // Sources are already in args, so pass empty list to avoid duplication
       // BTAPI will extract sources from the arguments
-      compilationService.compileJvm(
-        projectId,
-        executionConfig,
-        compilationConfig,
-        emptyList(),
-        args.toList(),
-      )
-    } finally {
-      // Clean up resources and caches for this project compilation
-      // Wrap in try-catch since cleanup failures shouldn't fail the build
+      val result =
+        compilationService.compileJvm(
+          projectId,
+          executionConfig,
+          compilationConfig,
+          emptyList(), // Sources passed via args
+          args.toList(),
+        )
+
+      // TODO: Re-enable finishProjectCompilation cleanup after investigating resource management
+      // In persistent workers, the compilationService is shared across compilations.
+      // The finishProjectCompilation cleanup appears to close shared resources (ZipHandler)
+      // causing subsequent compilations to fail or hang.
+      // For now, we skip cleanup - the JVM will clean up on worker restart.
+      //
+      // Original code:
+      // try {
+      //   compilationService.finishProjectCompilation(projectId)
+      // } catch (e: Throwable) {
+      //   errStream.println("Warning: Error during finishProjectCompilation cleanup: ${e.message}")
+      // }
+
+      // Try cleanup, but don't fail if it errors
+      // In persistent workers, this may cause issues, so we catch and log errors
       try {
         compilationService.finishProjectCompilation(projectId)
       } catch (e: Throwable) {
-        // Log but don't fail - cleanup errors are not critical
-        System.err.println("Warning: Error during finishProjectCompilation cleanup: ${e.message}")
+        if (BazelKotlinLogger(errStream, parsedArgs.moduleName).isDebugEnabled) {
+          errStream.println("Debug: finishProjectCompilation cleanup warning: ${e.message}")
+        }
+        // Don't propagate the error - cleanup failure shouldn't fail the compilation
       }
+
+      result
+    } catch (e: Throwable) {
+      errStream.println("Error during compilation: ${e.message}")
+      e.printStackTrace(errStream)
+      CompilationResult.COMPILER_INTERNAL_ERROR
     }
   }
 

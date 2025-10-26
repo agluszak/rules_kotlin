@@ -27,6 +27,7 @@ java_test(
     deps = [
         "//src/main/kotlin/io/bazel/kotlin/builder/toolchain",
         "//src/main/kotlin/io/bazel/kotlin/compiler",
+        "//kotlin/compiler:kotlin-stdlib",
         "@kotlin_rules_maven//:com_google_truth_truth",
         "@kotlin_rules_maven//:junit_junit",
     ],

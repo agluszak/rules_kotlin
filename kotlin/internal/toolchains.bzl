@@ -260,6 +260,12 @@ _kt_toolchain = rule(
                 "KOTLINBUILDER_REDUCED",
             ],
         ),
+        "experimental_use_incremental_compilation": attr.bool(
+            doc = """Enable Build Tools API incremental compilation (experimental).
+            WARNING: Experimental feature. Only works with persistent workers.
+            IC state is stored in Bazel output tree and invalidated on bazel clean.""",
+            default = False,
+        ),
         "javac_options": attr.label(
             doc = "Compiler options for javac",
             providers = [JavacOptions],
@@ -334,6 +340,7 @@ def define_kt_toolchain(
         experimental_strict_kotlin_deps = None,
         experimental_report_unused_deps = None,
         experimental_reduce_classpath_mode = None,
+        experimental_use_incremental_compilation = False,
         experimental_multiplex_workers = None,
         javac_options = Label("//kotlin/internal:default_javac_options"),
         kotlinc_options = Label("//kotlin/internal:default_kotlinc_options"),
@@ -360,6 +367,7 @@ def define_kt_toolchain(
         experimental_treat_internal_as_private_in_abi_jars = experimental_treat_internal_as_private_in_abi_jars,
         experimental_remove_private_classes_in_abi_jars = experimental_remove_private_classes_in_abi_jars,
         experimental_remove_debug_info_in_abi_jars = experimental_remove_debug_info_in_abi_jars,
+        experimental_use_incremental_compilation = experimental_use_incremental_compilation,
         experimental_multiplex_workers = experimental_multiplex_workers,
         experimental_strict_kotlin_deps = experimental_strict_kotlin_deps,
         experimental_report_unused_deps = experimental_report_unused_deps,

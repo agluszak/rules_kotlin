@@ -2,8 +2,8 @@ common --enable_bzlmod=true
 common --incompatible_use_plus_in_repo_names
 common --incompatible_disallow_empty_glob=false
 
-build --java_language_version=17 --java_runtime_version=17
-build --tool_java_language_version=17 --tool_java_runtime_version=17
+build --java_language_version=17 --java_runtime_version=remotejdk_17
+build --tool_java_language_version=17 --tool_java_runtime_version=remotejdk_17
 
 build --strategy=KotlinCompile=worker
 build --test_output=all

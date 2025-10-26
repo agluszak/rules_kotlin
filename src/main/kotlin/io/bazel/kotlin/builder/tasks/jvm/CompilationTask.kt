@@ -479,8 +479,18 @@ fun JvmCompilationTask.compileKotlin(
         context.whenTracing {
           context.printLines("compileKotlin arguments:\n", it)
         }
+        // Create compile function with IC support if enabled
+        val compileFunction: (Array<String>, java.io.PrintStream) -> Int = { args, out ->
+          if (info.enableIncrementalCompilation && icWorkingDirectory.isNotEmpty()) {
+            val icWorkingDir = java.io.File(icWorkingDirectory)
+            val classpathFiles = icClasspathEntriesList.map { java.io.File(it) }
+            compiler.compile(args, out, icWorkingDir, classpathFiles)
+          } else {
+            compiler.compile(args, out)
+          }
+        }
         return@let context
-          .executeCompilerTask(it, compiler::compile, printOnFail = printOnFail)
+          .executeCompilerTask(it, compileFunction, printOnFail = printOnFail)
           .also {
             context.whenTracing {
               printLines(

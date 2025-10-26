@@ -60,6 +60,15 @@ kt_rules_test(
 )
 
 kt_rules_test(
+    name = "KotlinBuilderJvmJdepsSingleTest",
+    srcs = ["jvm/KotlinBuilderJvmJdepsSingleTest.kt"],
+    data = [
+        ":JdepsParserTestFixtures",
+        ":JdepsParserTestFixtures2",
+    ],
+)
+
+kt_rules_test(
     name = "KotlinBuilderJvmStrictDepsTest",
     size = "large",
     srcs = ["jvm/KotlinBuilderJvmStrictDepsTest.kt"],

@@ -25,6 +25,7 @@ import io.bazel.kotlin.model.CompilationTaskInfo;
 import io.bazel.kotlin.model.JvmCompilationTask;
 import io.bazel.kotlin.model.KotlinToolchainInfo;
 
+import java.nio.file.Files;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.function.BiConsumer;
@@ -137,6 +138,11 @@ public final class KotlinJvmTestBuilder extends KotlinAbstractTestBuilder<JvmCom
         component = null;
     }
 
+    public boolean icCacheExists() {
+        return Files.exists(instanceRoot().resolve("ic_cache")) &&
+               Files.exists(instanceRoot().resolve("ic_cache/shrunk-classpath-snapshot.bin"));
+    }
+
     public class TaskBuilder {
         TaskBuilder() {
         }
@@ -230,6 +236,17 @@ public final class KotlinJvmTestBuilder extends KotlinAbstractTestBuilder<JvmCom
 
         public TaskBuilder publicOnlyAbiJar() {
             taskBuilder.getInfoBuilder().setTreatInternalAsPrivateInAbiJar(true).setRemovePrivateClassesInAbiJar(true);
+            return this;
+        }
+
+        public TaskBuilder enableIncrementalCompilation() {
+            taskBuilder.getInfoBuilder().setEnableIncrementalCompilation(true);
+            String icCacheDir = instanceRoot().resolve("ic_cache").toAbsolutePath().toString();
+            taskBuilder.setIcWorkingDirectory(icCacheDir);
+            // Add classpath entries for IC
+            taskBuilder.getInputsBuilder().getClasspathList().forEach(
+                cp -> taskBuilder.addIcClasspathEntries(cp)
+            );
             return this;
         }
 

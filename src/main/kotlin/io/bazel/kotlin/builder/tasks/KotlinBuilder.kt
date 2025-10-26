@@ -86,6 +86,7 @@ class KotlinBuilder
         BUILD_KOTLIN("--build_kotlin"),
         STRICT_KOTLIN_DEPS("--strict_kotlin_deps"),
         REDUCED_CLASSPATH_MODE("--reduced_classpath_mode"),
+        EXPERIMENTAL_USE_INCREMENTAL_COMPILATION("--experimental_use_incremental_compilation"),
         INSTRUMENT_COVERAGE("--instrument_coverage"),
         KSP_GENERATED_JAVA_SRCJAR("--ksp_generated_java_srcjar"),
         KSP_GENERATED_CLASSES_JAR("--ksp_generated_classes_jar"),
@@ -162,6 +163,7 @@ class KotlinBuilder
           argMap.mandatorySingle(KotlinBuilderFlags.LANGUAGE_VERSION)
         strictKotlinDeps = argMap.mandatorySingle(KotlinBuilderFlags.STRICT_KOTLIN_DEPS)
         reducedClasspathMode = argMap.mandatorySingle(KotlinBuilderFlags.REDUCED_CLASSPATH_MODE)
+        enableIncrementalCompilation = argMap.optionalSingle(KotlinBuilderFlags.EXPERIMENTAL_USE_INCREMENTAL_COMPILATION)?.toBoolean() ?: false
         argMap.optionalSingle(KotlinBuilderFlags.ABI_JAR_INTERNAL_AS_PRIVATE)?.let {
           treatInternalAsPrivateInAbiJar = it == "true"
         }
@@ -301,6 +303,16 @@ class KotlinBuilder
             ?.also {
               addAllSourceJars(it)
             }
+        }
+
+        // Configure incremental compilation if enabled
+        if (info.enableIncrementalCompilation) {
+          val moduleName = argMap.mandatorySingle(KotlinBuilderFlags.MODULE_NAME)
+          root.icWorkingDirectory =
+            workingDir
+              .resolveNewDirectories(getOutputDirPath(moduleName, "ic_cache"))
+              .toString()
+          root.addAllIcClasspathEntries(argMap.mandatory(KotlinBuilderFlags.CLASSPATH))
         }
 
         with(root.infoBuilder) {

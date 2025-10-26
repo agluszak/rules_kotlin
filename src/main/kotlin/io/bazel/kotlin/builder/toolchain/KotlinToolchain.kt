@@ -37,6 +37,8 @@ class KotlinToolchain private constructor(
   val jdepsGen: CompilerPlugin,
   val kspSymbolProcessingApi: CompilerPlugin,
   val kspSymbolProcessingCommandLine: CompilerPlugin,
+  val kotlinxSerializationJars: List<File> = emptyList(),
+  val kotlinDaemonClientJar: File,
 ) {
   companion object {
     private val JVM_ABI_PLUGIN by lazy {
@@ -137,6 +139,13 @@ class KotlinToolchain private constructor(
         ).toPath()
     }
 
+    private val KOTLIN_DAEMON_CLIENT by lazy {
+      BazelRunFiles
+        .resolveVerifiedFromProperty(
+          "@com_github_jetbrains_kotlin...kotlin-daemon-client",
+        ).toPath()
+    }
+
     private val JAVA_HOME by lazy {
       FileSystems
         .getDefault()
@@ -165,6 +174,7 @@ class KotlinToolchain private constructor(
         KOTLINX_SERIALIZATION_CORE_JVM.toFile(),
         KOTLINX_SERIALIZATION_JSON.toFile(),
         KOTLINX_SERIALIZATION_JSON_JVM.toFile(),
+        KOTLIN_DAEMON_CLIENT.toFile(),
       )
 
     @JvmStatic
@@ -183,6 +193,7 @@ class KotlinToolchain private constructor(
       kotlinxSerializationCoreJvm: File,
       kotlinxSerializationJson: File,
       kotlinxSerializationJsonJvm: File,
+      kotlinDaemonClient: File,
     ): KotlinToolchain =
       KotlinToolchain(
         listOf(
@@ -202,6 +213,7 @@ class KotlinToolchain private constructor(
           kotlinxSerializationCoreJvm,
           kotlinxSerializationJson,
           kotlinxSerializationJsonJvm,
+          // NOTE: kotlin-daemon-client is NOT preloaded - only loaded in BuildToolsAPICompiler when IC is enabled
         ),
         kotlinCompilerJar = kotlinc,
         buildToolsImplJar = buildToolsImplJar,
@@ -235,6 +247,13 @@ class KotlinToolchain private constructor(
             kspSymbolProcessingCommandLine.absolutePath,
             "com.google.devtools.ksp.symbol-processing",
           ),
+        kotlinxSerializationJars =
+          listOf(
+            kotlinxSerializationCoreJvm,
+            kotlinxSerializationJson,
+            kotlinxSerializationJsonJvm,
+          ),
+        kotlinDaemonClientJar = kotlinDaemonClient,
       )
   }
 
@@ -278,7 +297,11 @@ class KotlinToolchain private constructor(
    * @return Version string of the Kotlin compiler (e.g., "2.1.0" or "2.2.0-Beta1")
    */
   fun getCompilerVersion(): String {
-    val compiler = io.bazel.kotlin.compiler.BuildToolsAPICompiler(kotlinCompilerJar, buildToolsImplJar)
+    val compiler = io.bazel.kotlin.compiler.BuildToolsAPICompiler(
+      kotlinCompilerJar,
+      buildToolsImplJar,
+      kotlinxSerializationJars
+    )
     return compiler.getCompilerVersion()
   }
 
@@ -293,6 +316,8 @@ class KotlinToolchain private constructor(
       jdepsGen,
       kspSymbolProcessingApi,
       kspSymbolProcessingCommandLine,
+      kotlinxSerializationJars,
+      kotlinDaemonClientJar,
     )
 
   data class CompilerPlugin(

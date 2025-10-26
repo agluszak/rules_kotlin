@@ -55,8 +55,18 @@ class KotlinJvmTaskExecutor
       context: CompilationTaskContext,
       task: JvmCompilationTask,
     ) {
-      // Instantiate BuildToolsAPICompiler following Maven plugin pattern
-      val compiler = BuildToolsAPICompiler(toolchain.kotlinCompilerJar, toolchain.buildToolsImplJar)
+      // Instantiate BuildToolsAPICompiler with serialization jars needed by KSP
+      // Add kotlin-daemon-client only when IC is enabled to avoid classloader conflicts
+      val additionalClasspath = if (task.info.enableIncrementalCompilation) {
+        toolchain.kotlinxSerializationJars + toolchain.kotlinDaemonClientJar
+      } else {
+        toolchain.kotlinxSerializationJars
+      }
+      val compiler = BuildToolsAPICompiler(
+        toolchain.kotlinCompilerJar,
+        toolchain.buildToolsImplJar,
+        additionalClasspath
+      )
 
       val preprocessedTask =
         task
