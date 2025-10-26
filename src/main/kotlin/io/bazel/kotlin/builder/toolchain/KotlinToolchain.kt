@@ -306,6 +306,34 @@ class KotlinToolchain private constructor(
     return compiler.getCompilerVersion()
   }
 
+  /**
+   * Cached BuildToolsAPICompiler instances to avoid creating multiple classloaders.
+   * Key is the additionalClasspath to handle different configurations (with/without IC).
+   */
+  private val compilerCache =
+    mutableMapOf<List<File>, io.bazel.kotlin.compiler.BuildToolsAPICompiler>()
+
+  /**
+   * Get or create a cached BuildToolsAPICompiler instance.
+   *
+   * This method reuses BuildToolsAPICompiler instances to avoid creating multiple
+   * URLClassLoaders, which can exhaust metaspace/compressed class space in tests
+   * or long-running workers.
+   *
+   * @param additionalClasspath Additional JARs for the compiler classpath
+   * @return Cached or new BuildToolsAPICompiler instance
+   */
+  fun getOrCreateCompiler(
+    additionalClasspath: List<File>,
+  ): io.bazel.kotlin.compiler.BuildToolsAPICompiler =
+    compilerCache.getOrPut(additionalClasspath) {
+      io.bazel.kotlin.compiler.BuildToolsAPICompiler(
+        kotlinCompilerJar,
+        buildToolsImplJar,
+        additionalClasspath,
+      )
+    }
+
   fun toolchainWithReflect(kotlinReflect: File? = null): KotlinToolchain =
     KotlinToolchain(
       baseJars + listOf(kotlinReflect ?: KOTLIN_REFLECT.toFile()),

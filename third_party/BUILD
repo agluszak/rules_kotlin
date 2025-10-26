@@ -71,7 +71,6 @@ java_binary(
     name = "jarjar_runner",
     main_class = "com.eed3si9n.jarjarabrams.Main",
     visibility = ["//visibility:public"],
-    # com.eed3si9n.jarjarabrams:jarjar-abrams-assembly_2.13:1.16.0
     runtime_deps = ["@kotlin_rules_maven//:com_eed3si9n_jarjarabrams_jarjar_abrams_assembly_2_13"],
 )
 

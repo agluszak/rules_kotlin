@@ -19,7 +19,6 @@ package io.bazel.kotlin.builder.tasks.jvm
 import io.bazel.kotlin.builder.toolchain.CompilationStatusException
 import io.bazel.kotlin.builder.toolchain.CompilationTaskContext
 import io.bazel.kotlin.builder.toolchain.KotlinToolchain
-import io.bazel.kotlin.compiler.BuildToolsAPICompiler
 import io.bazel.kotlin.model.JvmCompilationTask
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -55,20 +54,16 @@ class KotlinJvmTaskExecutor
       context: CompilationTaskContext,
       task: JvmCompilationTask,
     ) {
-      // Instantiate BuildToolsAPICompiler with serialization jars needed by KSP
+      // Get or create cached BuildToolsAPICompiler with serialization jars needed by KSP
       // Add kotlin-daemon-client only when IC is enabled to avoid classloader conflicts
+      // Using cached instance avoids creating multiple URLClassLoaders and exhausting metaspace
       val additionalClasspath =
         if (task.info.enableIncrementalCompilation) {
           toolchain.kotlinxSerializationJars + toolchain.kotlinDaemonClientJar
         } else {
           toolchain.kotlinxSerializationJars
         }
-      val compiler =
-        BuildToolsAPICompiler(
-          toolchain.kotlinCompilerJar,
-          toolchain.buildToolsImplJar,
-          additionalClasspath,
-        )
+      val compiler = toolchain.getOrCreateCompiler(additionalClasspath)
 
       val preprocessedTask =
         task
