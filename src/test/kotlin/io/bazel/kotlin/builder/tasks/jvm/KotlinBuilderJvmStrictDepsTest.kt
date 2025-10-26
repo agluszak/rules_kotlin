@@ -62,7 +62,7 @@ class KotlinBuilderJvmStrictDepsTest {
             c.addSource("HasTransitiveReference.kt",
               """
           package something
-          
+
           val transitiveReference = TransitiveClass()
         """)
             c.outputJar()
@@ -73,7 +73,11 @@ class KotlinBuilderJvmStrictDepsTest {
             c.kotlinStrictDeps("error")
           })
       }
-    ) { lines: List<String?> -> assertThat(lines[0]).contains("Strict Deps Violations - please fix") }
+    ) { lines: List<String?> ->
+        // Find the error line (skip warnings like deprecation notices)
+        val errorLine = lines.find { it?.contains("Strict Deps Violations") == true }
+        assertThat(errorLine).contains("Strict Deps Violations - please fix")
+    }
   }
 
 }

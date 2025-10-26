@@ -19,6 +19,9 @@ load("//src/main/starlark/release:packager.bzl", "release_archive")
 kt_bootstrap_library(
     name = "compiler",
     srcs = glob(["*.kt"]),
+    deps = [
+        "@kotlin_build_tools_api//jar",
+    ],
     neverlink_deps = [
         "//kotlin/compiler:kotlin-compiler",
         "//kotlin/compiler:kotlin-annotation-processing",

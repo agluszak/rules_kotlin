@@ -19,6 +19,7 @@ package io.bazel.kotlin.builder.tasks.jvm
 import io.bazel.kotlin.builder.toolchain.CompilationStatusException
 import io.bazel.kotlin.builder.toolchain.CompilationTaskContext
 import io.bazel.kotlin.builder.toolchain.KotlinToolchain
+import io.bazel.kotlin.compiler.BuildToolsAPICompiler
 import io.bazel.kotlin.model.JvmCompilationTask
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -33,7 +34,7 @@ const val X_FRIENDS_PATH_SEPARATOR = ","
 class KotlinJvmTaskExecutor
   @Inject
   internal constructor(
-    private val compilerBuilder: KotlinToolchain.KotlincInvokerBuilder,
+    private val toolchain: KotlinToolchain,
     private val plugins: InternalCompilerPlugins,
   ) {
     private fun combine(
@@ -54,7 +55,8 @@ class KotlinJvmTaskExecutor
       context: CompilationTaskContext,
       task: JvmCompilationTask,
     ) {
-      val compiler = compilerBuilder.build(context.info.buildToolsApi)
+      // Instantiate BuildToolsAPICompiler following Maven plugin pattern
+      val compiler = BuildToolsAPICompiler(toolchain.kotlinCompilerJar, toolchain.buildToolsImplJar)
 
       val preprocessedTask =
         task

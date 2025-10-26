@@ -87,6 +87,13 @@ versions = struct(
         ],
         sha256 = "783a09c71cc40e3e79eb56ef6d7dd244a8a1e67e11dde6f6684f22fe12d1a9b8",
     ),
+    KOTLIN_BUILD_TOOLS_API = version(
+        version = "2.2.21",
+        url_templates = [
+            "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-build-tools-api/{version}/kotlin-build-tools-api-{version}.jar",
+        ],
+        sha256 = "31645ca52239b221ebd060a00fff8d8516ffdc88bbd9f4e4cd7ddb41a7068c70",
+    ),
     KOTLIN_BUILD_TOOLS_IMPL = version(
         version = "2.2.21",
         url_templates = [

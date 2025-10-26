@@ -250,7 +250,7 @@ private fun Pair<String, List<String>>.asKeyToCommaList() =
 internal fun JvmCompilationTask.runPlugins(
   context: CompilationTaskContext,
   plugins: InternalCompilerPlugins,
-  compiler: KotlinToolchain.KotlincInvoker,
+  compiler: io.bazel.kotlin.compiler.BuildToolsAPICompiler,
 ): JvmCompilationTask {
   if (
     (
@@ -274,7 +274,7 @@ internal fun JvmCompilationTask.runPlugins(
 private fun JvmCompilationTask.runKaptPlugin(
   context: CompilationTaskContext,
   plugins: InternalCompilerPlugins,
-  compiler: KotlinToolchain.KotlincInvoker,
+  compiler: io.bazel.kotlin.compiler.BuildToolsAPICompiler,
 ): JvmCompilationTask {
   return context.execute("kapt (${inputs.processorsList.joinToString(", ")})") {
     baseArgs()
@@ -309,7 +309,7 @@ private fun JvmCompilationTask.runKaptPlugin(
 private fun JvmCompilationTask.runKspPlugin(
   context: CompilationTaskContext,
   plugins: InternalCompilerPlugins,
-  compiler: KotlinToolchain.KotlincInvoker,
+  compiler: io.bazel.kotlin.compiler.BuildToolsAPICompiler,
 ): JvmCompilationTask {
   return context.execute("Ksp (${inputs.processorsList.joinToString(", ")})") {
     val overrides =
@@ -457,7 +457,7 @@ internal fun JvmCompilationTask.createdGeneratedKspClassesJar() {
  */
 fun JvmCompilationTask.compileKotlin(
   context: CompilationTaskContext,
-  compiler: KotlinToolchain.KotlincInvoker,
+  compiler: io.bazel.kotlin.compiler.BuildToolsAPICompiler,
   args: CompilationArgs = baseArgs(),
   printOnFail: Boolean = true,
 ): List<String> {

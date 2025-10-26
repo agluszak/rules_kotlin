@@ -91,7 +91,16 @@ public class KotlinBuilderJvmBasicTest {
                                     c.outputJar();
                                     c.outputJdeps();
                                 }),
-                lines -> assertThat(lines.get(0)).startsWith(ctx.toPlatform("sources/AClass")));
+                lines -> {
+                    // Find the first error line (skip warnings)
+                    // BTAPI outputs file:// URIs, so check that the error contains the file path and error message
+                    String errorLine = lines.stream()
+                            .filter(line -> line.contains(ctx.toPlatform("sources/AClass")))
+                            .findFirst()
+                            .orElse("");
+                    assertThat(errorLine).contains(ctx.toPlatform("sources/AClass"));
+                    assertThat(errorLine).contains("Missing");
+                });
     }
 
     @Test

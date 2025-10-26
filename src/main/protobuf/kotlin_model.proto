@@ -59,6 +59,9 @@ enum Platform {
 
 // Common info about a Kotlin compilation task, this message is shared by all compilation tasks.
 message CompilationTaskInfo {
+    // Reserved field numbers for deprecated/removed fields
+    reserved 14; // build_tools_api - always enabled, no longer configurable
+
     string label = 1;
     // The Platform type.
     Platform platform = 2;
@@ -86,10 +89,10 @@ message CompilationTaskInfo {
     bool treat_internal_as_private_in_abi_jar = 12;
     // Private classes are removed in abi.jar generation
     bool remove_private_classes_in_abi_jar = 13;
-    // New Build Tools API. Required for incremental compilation.
-    bool build_tools_api = 14;
     // Debug info is stripped in abi.jar generation
     bool remove_debug_info = 15;
+    // Enable incremental compilation using Build Tools API (experimental)
+    bool enable_incremental_compilation = 16;
 }
 
 // Nested messages not marked with stable could be refactored.
@@ -176,4 +179,10 @@ message JvmCompilationTask {
   Inputs inputs = 4;
   bool compile_kotlin = 6;
   bool instrument_coverage = 7;
+
+  // Incremental compilation configuration (experimental)
+  // Working directory for incremental compilation caches
+  string ic_working_directory = 8;
+  // Classpath entries for snapshot generation
+  repeated string ic_classpath_entries = 9;
 }

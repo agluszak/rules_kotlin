@@ -23,16 +23,14 @@ import io.bazel.kotlin.builder.utils.verifiedPath
 import org.jetbrains.kotlin.preloading.ClassPreloadingUtils
 import org.jetbrains.kotlin.preloading.Preloader
 import java.io.File
-import java.io.PrintStream
-import java.lang.reflect.Method
 import java.nio.file.FileSystems
 import java.nio.file.Path
 import java.nio.file.Paths
-import javax.inject.Inject
-import javax.inject.Singleton
 
 class KotlinToolchain private constructor(
   private val baseJars: List<File>,
+  val kotlinCompilerJar: File,
+  val buildToolsImplJar: File,
   val kapt3Plugin: CompilerPlugin,
   val jvmAbiGen: CompilerPlugin,
   val skipCodeGen: CompilerPlugin,
@@ -125,7 +123,14 @@ class KotlinToolchain private constructor(
         ).toPath()
     }
 
-    private val BUILD_TOOLS_API by lazy {
+    private val BUILD_TOOLS_API_JAR by lazy {
+      BazelRunFiles
+        .resolveVerifiedFromProperty(
+          "@com_github_jetbrains_kotlin...build-tools-api",
+        ).toPath()
+    }
+
+    private val BUILD_TOOLS_IMPL_JAR by lazy {
       BazelRunFiles
         .resolveVerifiedFromProperty(
           "@com_github_jetbrains_kotlin...build-tools-impl",
@@ -141,8 +146,6 @@ class KotlinToolchain private constructor(
         }.verifiedPath()
     }
 
-    internal val NO_ARGS = arrayOf<Any>()
-
     private val isJdk9OrNewer = !System.getProperty("java.version").startsWith("1.")
 
     @JvmStatic
@@ -151,7 +154,8 @@ class KotlinToolchain private constructor(
         JAVA_HOME,
         KOTLINC.verified().absoluteFile,
         COMPILER.verified().absoluteFile,
-        BUILD_TOOLS_API.verified().absoluteFile,
+        BUILD_TOOLS_API_JAR.verified().absoluteFile,
+        BUILD_TOOLS_IMPL_JAR.verified().absoluteFile,
         JVM_ABI_PLUGIN.verified().absoluteFile,
         SKIP_CODE_GEN_PLUGIN.verified().absoluteFile,
         JDEPS_GEN_PLUGIN.verified().absoluteFile,
@@ -167,8 +171,9 @@ class KotlinToolchain private constructor(
     fun createToolchain(
       javaHome: Path,
       kotlinc: File,
-      buildTools: File,
       compiler: File,
+      buildToolsApiJar: File,
+      buildToolsImplJar: File,
       jvmAbiGenFile: File,
       skipCodeGenFile: File,
       jdepsGenFile: File,
@@ -183,7 +188,9 @@ class KotlinToolchain private constructor(
         listOf(
           kotlinc,
           compiler,
-          buildTools,
+          // NOTE: buildToolsApiJar must be preloaded so SharedApiClassesClassLoader is available
+          // kotlinc and buildToolsImplJar are NOT preloaded - BuildToolsAPICompiler loads them in isolated classloader
+          buildToolsApiJar,
           // plugins *must* be preloaded. Not doing so causes class conflicts
           // (and a NoClassDef err) in the compiler extension interfaces.
           // This may cause issues in accepting user defined compiler plugins.
@@ -196,6 +203,8 @@ class KotlinToolchain private constructor(
           kotlinxSerializationJson,
           kotlinxSerializationJsonJvm,
         ),
+        kotlinCompilerJar = kotlinc,
+        buildToolsImplJar = buildToolsImplJar,
         jvmAbiGen =
           CompilerPlugin(
             jvmAbiGenFile.path,
@@ -257,9 +266,27 @@ class KotlinToolchain private constructor(
     )
   }
 
+  /**
+   * Get the Kotlin compiler version from the Build Tools API.
+   *
+   * This method creates a temporary BuildToolsAPICompiler instance to query the version.
+   * The version is useful for:
+   * - Debugging compilation issues
+   * - Version compatibility checks in rules
+   * - Logging and diagnostics
+   *
+   * @return Version string of the Kotlin compiler (e.g., "2.1.0" or "2.2.0-Beta1")
+   */
+  fun getCompilerVersion(): String {
+    val compiler = io.bazel.kotlin.compiler.BuildToolsAPICompiler(kotlinCompilerJar, buildToolsImplJar)
+    return compiler.getCompilerVersion()
+  }
+
   fun toolchainWithReflect(kotlinReflect: File? = null): KotlinToolchain =
     KotlinToolchain(
       baseJars + listOf(kotlinReflect ?: KOTLIN_REFLECT.toFile()),
+      kotlinCompilerJar,
+      buildToolsImplJar,
       kapt3Plugin,
       jvmAbiGen,
       skipCodeGen,
@@ -272,53 +299,4 @@ class KotlinToolchain private constructor(
     val jarPath: String,
     val id: String,
   )
-
-  open class KotlincInvoker internal constructor(
-    toolchain: KotlinToolchain,
-    clazz: String,
-  ) {
-    private val compiler: Any
-    private val execMethod: Method
-    private val getCodeMethod: Method
-
-    init {
-      val compilerClass = toolchain.classLoader.loadClass(clazz)
-      val exitCodeClass =
-        toolchain.classLoader.loadClass("org.jetbrains.kotlin.cli.common.ExitCode")
-
-      compiler = compilerClass.getConstructor().newInstance()
-      execMethod =
-        compilerClass.getMethod("exec", PrintStream::class.java, Array<String>::class.java)
-      getCodeMethod = exitCodeClass.getMethod("getCode")
-    }
-
-    // Kotlin error codes:
-    // 1 is a standard compilation error
-    // 2 is an internal error
-    // 3 is the script execution error
-    fun compile(
-      args: Array<String>,
-      out: PrintStream,
-    ): Int {
-      val exitCodeInstance = execMethod.invoke(compiler, out, args)
-      return getCodeMethod.invoke(exitCodeInstance, *NO_ARGS) as Int
-    }
-  }
-
-  @Singleton
-  class KotlincInvokerBuilder
-    @Inject
-    constructor(
-      private val toolchain: KotlinToolchain,
-    ) {
-      fun build(useExperimentalBuildToolsAPI: Boolean): KotlincInvoker {
-        val clazz =
-          if (useExperimentalBuildToolsAPI) {
-            "io.bazel.kotlin.compiler.BuildToolsAPICompiler"
-          } else {
-            "io.bazel.kotlin.compiler.BazelK2JVMCompiler"
-          }
-        return KotlincInvoker(toolchain = toolchain, clazz = clazz)
-      }
-    }
 }

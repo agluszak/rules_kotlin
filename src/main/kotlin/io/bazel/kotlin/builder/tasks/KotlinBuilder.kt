@@ -89,7 +89,6 @@ class KotlinBuilder
         INSTRUMENT_COVERAGE("--instrument_coverage"),
         KSP_GENERATED_JAVA_SRCJAR("--ksp_generated_java_srcjar"),
         KSP_GENERATED_CLASSES_JAR("--ksp_generated_classes_jar"),
-        BUILD_TOOLS_API("--build_tools_api"),
       }
     }
 
@@ -171,9 +170,6 @@ class KotlinBuilder
         }
         argMap.optionalSingle(KotlinBuilderFlags.ABI_JAR_REMOVE_DEBUG_INFO)?.let {
           removeDebugInfo = it == "true"
-        }
-        argMap.optionalSingle(KotlinBuilderFlags.BUILD_TOOLS_API)?.let {
-          buildToolsApi = it == "true"
         }
         this
       }

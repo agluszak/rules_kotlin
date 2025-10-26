@@ -20,9 +20,10 @@ import org.jetbrains.kotlin.buildtools.api.CompilationService
 import org.jetbrains.kotlin.buildtools.api.ExperimentalBuildToolsApi
 import org.jetbrains.kotlin.buildtools.api.KotlinLogger
 import org.jetbrains.kotlin.buildtools.api.ProjectId
-import org.jetbrains.kotlin.cli.common.ExitCode
+import org.jetbrains.kotlin.buildtools.api.SharedApiClassesClassLoader  // Top-level function
 import java.io.File
 import java.io.PrintStream
+import java.net.URLClassLoader
 import java.util.UUID
 
 /**
@@ -34,31 +35,88 @@ import java.util.UUID
  *
  * ## Classloader Isolation
  *
- * The kotlin-build-tools-impl jar is preloaded in an isolated classloader created by
- * ClassPreloadingUtils in KotlinToolchain. This provides basic isolation from user dependencies.
+ * Following the official kotlin-maven-plugin pattern, this implementation:
+ * 1. Creates an isolated URLClassLoader containing only kotlin-build-tools-impl.jar
+ * 2. Uses SharedApiClassesClassLoader() as parent for proper API class sharing
+ * 3. Loads CompilationService via ServiceLoader in this isolated environment
  *
- * BTAPI best practice recommends using SharedApiClassesClassLoader.newInstance() as the parent
- * classloader for maximum isolation. A future refactoring could implement this by:
- * 1. NOT preloading kotlin-build-tools-impl in KotlinToolchain.baseJars
- * 2. Creating an isolated URLClassLoader here with SharedApiClassesClassLoader.newInstance() parent
- * 3. Loading only kotlin-build-tools-impl (and its dependencies) in that isolated loader
+ * The SharedApiClassesClassLoader ensures only org.jetbrains.kotlin.buildtools.api.* classes
+ * are shared, with JDK classes as its parent. This provides maximum isolation between the
+ * compiler implementation and user code, preventing classpath conflicts.
  *
- * The current approach is sufficient for production use and fixes #1373.
+ * ## Performance Optimization
  *
+ * The CompilationService is cached as a lazy property to avoid repeated classloader creation
+ * and service loading overhead across multiple compilations in persistent worker scenarios.
+ *
+ * @param kotlinCompilerJar Path to the kotlin-compiler jar file
+ * @param buildToolsImplJar Path to the kotlin-build-tools-impl jar file
  * @see <a href="https://github.com/JetBrains/kotlin/tree/master/compiler/build-tools/kotlin-build-tools-api">BTAPI Documentation</a>
+ * @see org.jetbrains.kotlin.maven.K2JVMCompileMojo#getCompilationService
  */
 @Suppress("unused")
-class BuildToolsAPICompiler {
+class BuildToolsAPICompiler(
+  private val kotlinCompilerJar: File,
+  private val buildToolsImplJar: File,
+) {
+  /**
+   * Cached CompilationService instance to avoid repeated classloader creation.
+   * Initialized lazily on first use for optimal startup performance.
+   */
+  @OptIn(ExperimentalBuildToolsApi::class)
+  private val compilationService: CompilationService by lazy {
+    System.setProperty("zip.handler.uses.crc.instead.of.timestamp", "true")
+
+    // Create isolated classloader following the official Maven plugin pattern:
+    // URLClassLoader with kotlin-build-tools-impl.jar + kotlin-compiler.jar (which includes stdlib)
+    // Parent is SharedApiClassesClassLoader for proper API class sharing
+    val urls =
+      arrayOf(
+        buildToolsImplJar.toURI().toURL(),
+        kotlinCompilerJar.toURI().toURL(),
+      )
+    val btapiClassLoader = URLClassLoader(urls, SharedApiClassesClassLoader())
+    CompilationService.loadImplementation(btapiClassLoader)
+  }
+  /**
+   * Get the Kotlin compiler version from the Build Tools API.
+   *
+   * This is useful for debugging, version checks, and compatibility verification.
+   * The version is retrieved from the compiler's metadata and follows Kotlin's
+   * versioning scheme (e.g., "2.1.0", "2.2.0-Beta1").
+   *
+   * @return Version string of the Kotlin compiler (e.g., "2.1.0" or "2.2.0-Beta1")
+   */
+  @OptIn(ExperimentalBuildToolsApi::class)
+  fun getCompilerVersion(): String = compilationService.getCompilerVersion()
+
+  /**
+   * Compile with the signature expected by CompilationTaskContext.executeCompilerTask.
+   *
+   * @param args Compiler arguments
+   * @param out Output stream for compiler messages
+   * @return Exit code (0 for success, non-zero for failure)
+   */
+  fun compile(
+    args: Array<String>,
+    out: PrintStream,
+  ): Int {
+    val result = exec(out, *args)
+    // Map BTAPI CompilationResult to exit codes matching K2JVMCompiler convention
+    return when (result) {
+      CompilationResult.COMPILATION_SUCCESS -> 0
+      CompilationResult.COMPILATION_ERROR -> 1
+      CompilationResult.COMPILATION_OOM_ERROR -> 3
+      CompilationResult.COMPILER_INTERNAL_ERROR -> 4
+    }
+  }
+
   @OptIn(ExperimentalBuildToolsApi::class)
   fun exec(
     errStream: PrintStream,
     vararg args: String,
-  ): ExitCode {
-    System.setProperty("zip.handler.uses.crc.instead.of.timestamp", "true")
-
-    // Load BTAPI implementation from the preloaded classloader (created by KotlinToolchain)
-    // This classloader already provides isolation from user dependencies
-    val kotlinService = CompilationService.loadImplementation(this.javaClass.classLoader!!)
+  ): CompilationResult {
+    // Use the cached compilationService for optimal performance
 
     // Parse arguments to extract source files and module name for better integration
     val parsedArgs = parseArguments(args.toList())
@@ -72,37 +130,35 @@ class BuildToolsAPICompiler {
 
     // Use in-process execution strategy (not daemon) for hermetic builds and RBE compatibility
     val executionConfig =
-      kotlinService
+      compilationService
         .makeCompilerExecutionStrategyConfiguration()
         .useInProcessStrategy()
 
     // Configure JVM compilation with custom logger for better diagnostics
     val compilationConfig =
-      kotlinService
+      compilationService
         .makeJvmCompilationConfiguration()
         .useLogger(BazelKotlinLogger(errStream, parsedArgs.moduleName))
 
     return try {
-      // Pass actual source files to enable proper source tracking
-      val result =
-        kotlinService.compileJvm(
-          projectId,
-          executionConfig,
-          compilationConfig,
-          parsedArgs.sources,
-          args.toList(),
-        )
-
-      // BTAPI returns a different type than K2JVMCompiler (CompilationResult vs ExitCode).
-      when (result) {
-        CompilationResult.COMPILATION_SUCCESS -> ExitCode.OK
-        CompilationResult.COMPILATION_ERROR -> ExitCode.COMPILATION_ERROR
-        CompilationResult.COMPILATION_OOM_ERROR -> ExitCode.OOM_ERROR
-        CompilationResult.COMPILER_INTERNAL_ERROR -> ExitCode.INTERNAL_ERROR
-      }
+      // Sources are already in args, so pass empty list to avoid duplication
+      // BTAPI will extract sources from the arguments
+      compilationService.compileJvm(
+        projectId,
+        executionConfig,
+        compilationConfig,
+        emptyList(),
+        args.toList(),
+      )
     } finally {
       // Clean up resources and caches for this project compilation
-      kotlinService.finishProjectCompilation(projectId)
+      // Wrap in try-catch since cleanup failures shouldn't fail the build
+      try {
+        compilationService.finishProjectCompilation(projectId)
+      } catch (e: Throwable) {
+        // Log but don't fail - cleanup errors are not critical
+        System.err.println("Warning: Error during finishProjectCompilation cleanup: ${e.message}")
+      }
     }
   }
 
@@ -148,7 +204,8 @@ class BuildToolsAPICompiler {
   /**
    * Custom KotlinLogger implementation for Bazel integration.
    *
-   * Logs compilation messages to the provided error stream with appropriate prefixes.
+   * Logs compilation messages directly to the error stream without prefixes,
+   * matching the behavior of the old K2JVMCompiler direct invocation.
    * Debug logging is enabled via the KOTLIN_BUILD_TOOLS_API_DEBUG environment variable.
    */
   private class BazelKotlinLogger(
@@ -162,7 +219,7 @@ class BuildToolsAPICompiler {
       msg: String,
       throwable: Throwable?,
     ) {
-      errStream.println("[$moduleName] ERROR: $msg")
+      errStream.println(msg)
       throwable?.printStackTrace(errStream)
     }
 
@@ -170,22 +227,23 @@ class BuildToolsAPICompiler {
       msg: String,
       throwable: Throwable?,
     ) {
-      errStream.println("[$moduleName] WARN: $msg")
+      errStream.println(msg)
       throwable?.printStackTrace(errStream)
     }
 
     override fun info(msg: String) {
-      errStream.println("[$moduleName] INFO: $msg")
+      if (isDebugEnabled) {
+        errStream.println(msg)
+      }
     }
 
     override fun debug(msg: String) {
       if (isDebugEnabled) {
-        errStream.println("[$moduleName] DEBUG: $msg")
+        errStream.println(msg)
       }
     }
 
     override fun lifecycle(msg: String) {
-      // Lifecycle messages are shown without prefix for cleaner output
       errStream.println(msg)
     }
   }
