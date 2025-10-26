@@ -163,7 +163,11 @@ class KotlinBuilder
           argMap.mandatorySingle(KotlinBuilderFlags.LANGUAGE_VERSION)
         strictKotlinDeps = argMap.mandatorySingle(KotlinBuilderFlags.STRICT_KOTLIN_DEPS)
         reducedClasspathMode = argMap.mandatorySingle(KotlinBuilderFlags.REDUCED_CLASSPATH_MODE)
-        enableIncrementalCompilation = argMap.optionalSingle(KotlinBuilderFlags.EXPERIMENTAL_USE_INCREMENTAL_COMPILATION)?.toBoolean() ?: false
+        enableIncrementalCompilation =
+          argMap
+            .optionalSingle(KotlinBuilderFlags.EXPERIMENTAL_USE_INCREMENTAL_COMPILATION)
+            ?.toBoolean()
+            ?: false
         argMap.optionalSingle(KotlinBuilderFlags.ABI_JAR_INTERNAL_AS_PRIVATE)?.let {
           treatInternalAsPrivateInAbiJar = it == "true"
         }

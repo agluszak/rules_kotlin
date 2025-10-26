@@ -15,6 +15,7 @@
  */
 package io.bazel.kotlin.compiler;
 
+import io.bazel.kotlin.builder.Deps;
 import io.bazel.kotlin.builder.toolchain.KotlinToolchain;
 import org.junit.Rule;
 import org.junit.Test;
@@ -25,6 +26,7 @@ import org.junit.runners.JUnit4;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.PrintStream;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -49,9 +51,37 @@ public class BuildToolsAPICompilerTest {
         "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9]+)?$"
     );
 
+    /**
+     * Creates a KotlinToolchain using explicit file paths from runfiles.
+     * This avoids needing system properties to be set.
+     */
+    private KotlinToolchain createToolchain() {
+        Path javaHome = FileSystems.getDefault().getPath(System.getProperty("java.home"));
+        if (javaHome.endsWith(FileSystems.getDefault().getPath("jre"))) {
+            javaHome = javaHome.getParent();
+        }
+        return KotlinToolchain.createToolchain(
+            javaHome,
+            new File(Deps.Dep.fromLabel("//kotlin/compiler:kotlin-compiler").singleCompileJar()),
+            new File(Deps.Dep.fromLabel("//src/main/kotlin/io/bazel/kotlin/compiler:compiler.jar").singleCompileJar()),
+            new File(Deps.Dep.fromLabel("@kotlin_build_tools_api//jar").singleCompileJar()),
+            new File(Deps.Dep.fromLabel("@kotlin_build_tools_impl//jar").singleCompileJar()),
+            new File(Deps.Dep.fromLabel("//kotlin/compiler:jvm-abi-gen").singleCompileJar()),
+            new File(Deps.Dep.fromLabel("//src/main/kotlin:skip-code-gen").singleCompileJar()),
+            new File(Deps.Dep.fromLabel("//src/main/kotlin:jdeps-gen").singleCompileJar()),
+            new File(Deps.Dep.fromLabel("//kotlin/compiler:kotlin-annotation-processing").singleCompileJar()),
+            new File(Deps.Dep.fromLabel("//kotlin/compiler:symbol-processing-api").singleCompileJar()),
+            new File(Deps.Dep.fromLabel("//kotlin/compiler:symbol-processing-cmdline").singleCompileJar()),
+            new File(Deps.Dep.fromLabel("@kotlinx_serialization_core_jvm//jar").singleCompileJar()),
+            new File(Deps.Dep.fromLabel("@kotlinx_serialization_json//jar").singleCompileJar()),
+            new File(Deps.Dep.fromLabel("@kotlinx_serialization_json_jvm//jar").singleCompileJar()),
+            new File(Deps.Dep.fromLabel("//kotlin/compiler:kotlin-daemon-client").singleCompileJar())
+        );
+    }
+
     @Test
     public void testGetCompilerVersion_returnsValidVersion() {
-        KotlinToolchain toolchain = KotlinToolchain.createToolchain();
+        KotlinToolchain toolchain = createToolchain();
         String version = toolchain.getCompilerVersion();
 
         assertWithMessage("Compiler version should not be null or empty")
@@ -65,7 +95,7 @@ public class BuildToolsAPICompilerTest {
 
     @Test
     public void testGetCompilerVersion_returnsConsistentVersion() {
-        KotlinToolchain toolchain = KotlinToolchain.createToolchain();
+        KotlinToolchain toolchain = createToolchain();
 
         // Call multiple times to verify consistency
         String version1 = toolchain.getCompilerVersion();
@@ -78,7 +108,7 @@ public class BuildToolsAPICompilerTest {
 
     @Test
     public void testGetCompilerVersion_reportsExpectedVersionRange() {
-        KotlinToolchain toolchain = KotlinToolchain.createToolchain();
+        KotlinToolchain toolchain = createToolchain();
         String version = toolchain.getCompilerVersion();
 
         // Extract major version
@@ -104,7 +134,7 @@ public class BuildToolsAPICompilerTest {
 
     @Test
     public void testBuildToolsAPICompiler_directVersionAccess() {
-        KotlinToolchain toolchain = KotlinToolchain.createToolchain();
+        KotlinToolchain toolchain = createToolchain();
         BuildToolsAPICompiler compiler = new BuildToolsAPICompiler(
             toolchain.getKotlinCompilerJar(),
             toolchain.getBuildToolsImplJar()
@@ -123,7 +153,7 @@ public class BuildToolsAPICompilerTest {
 
     @Test
     public void testCompilerVersion_cachingWorks() {
-        KotlinToolchain toolchain = KotlinToolchain.createToolchain();
+        KotlinToolchain toolchain = createToolchain();
         BuildToolsAPICompiler compiler = new BuildToolsAPICompiler(
             toolchain.getKotlinCompilerJar(),
             toolchain.getBuildToolsImplJar()
@@ -152,11 +182,15 @@ public class BuildToolsAPICompilerTest {
 
     @Test
     public void testIncrementalCompilation_createsCache() throws Exception {
-        KotlinToolchain toolchain = KotlinToolchain.createToolchain();
+        KotlinToolchain toolchain = createToolchain();
+        // For IC tests, we need to include kotlin-daemon-client in the classpath
+        List<File> icClasspath = new java.util.ArrayList<>(toolchain.getKotlinxSerializationJars());
+        icClasspath.add(toolchain.getKotlinDaemonClientJar());
+
         BuildToolsAPICompiler compiler = new BuildToolsAPICompiler(
             toolchain.getKotlinCompilerJar(),
             toolchain.getBuildToolsImplJar(),
-            toolchain.getKotlinxSerializationJars()
+            icClasspath
         );
 
         // Create temporary directories
@@ -164,10 +198,10 @@ public class BuildToolsAPICompilerTest {
         File outputJar = temporaryFolder.newFile("output.jar");
         File icCacheDir = temporaryFolder.newFolder("ic_cache");
 
-        // Write simple Kotlin source
+        // Write simple Kotlin source (without stdlib dependencies)
         Files.write(sourceFile.toPath(), Arrays.asList(
-            "fun main() {",
-            "    println(\"Hello IC\")",
+            "class SimpleClass {",
+            "    val value: Int = 42",
             "}"
         ));
 
@@ -176,7 +210,6 @@ public class BuildToolsAPICompilerTest {
             "-d", outputJar.getAbsolutePath(),
             "-module-name", "test_module",
             "-jvm-target", "11",
-            "-no-stdlib",
             sourceFile.getAbsolutePath()
         };
 

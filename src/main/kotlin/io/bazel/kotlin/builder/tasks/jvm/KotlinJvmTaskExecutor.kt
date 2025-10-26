@@ -57,16 +57,18 @@ class KotlinJvmTaskExecutor
     ) {
       // Instantiate BuildToolsAPICompiler with serialization jars needed by KSP
       // Add kotlin-daemon-client only when IC is enabled to avoid classloader conflicts
-      val additionalClasspath = if (task.info.enableIncrementalCompilation) {
-        toolchain.kotlinxSerializationJars + toolchain.kotlinDaemonClientJar
-      } else {
-        toolchain.kotlinxSerializationJars
-      }
-      val compiler = BuildToolsAPICompiler(
-        toolchain.kotlinCompilerJar,
-        toolchain.buildToolsImplJar,
-        additionalClasspath
-      )
+      val additionalClasspath =
+        if (task.info.enableIncrementalCompilation) {
+          toolchain.kotlinxSerializationJars + toolchain.kotlinDaemonClientJar
+        } else {
+          toolchain.kotlinxSerializationJars
+        }
+      val compiler =
+        BuildToolsAPICompiler(
+          toolchain.kotlinCompilerJar,
+          toolchain.buildToolsImplJar,
+          additionalClasspath,
+        )
 
       val preprocessedTask =
         task
@@ -91,6 +93,9 @@ class KotlinJvmTaskExecutor
                             flag("target_label", info.label)
                             inputs.directDependenciesList.forEach {
                               flag("direct_dependencies", it)
+                            }
+                            inputs.classpathList.forEach {
+                              flag("full_classpath", it)
                             }
                             flag("strict_kotlin_deps", info.strictKotlinDeps)
                           }

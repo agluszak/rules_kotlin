@@ -297,11 +297,12 @@ class KotlinToolchain private constructor(
    * @return Version string of the Kotlin compiler (e.g., "2.1.0" or "2.2.0-Beta1")
    */
   fun getCompilerVersion(): String {
-    val compiler = io.bazel.kotlin.compiler.BuildToolsAPICompiler(
-      kotlinCompilerJar,
-      buildToolsImplJar,
-      kotlinxSerializationJars
-    )
+    val compiler =
+      io.bazel.kotlin.compiler.BuildToolsAPICompiler(
+        kotlinCompilerJar,
+        buildToolsImplJar,
+        kotlinxSerializationJars,
+      )
     return compiler.getCompilerVersion()
   }
 

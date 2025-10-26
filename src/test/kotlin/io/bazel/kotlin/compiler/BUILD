@@ -1,5 +1,3 @@
-load("@rules_java//java:defs.bzl", "java_test")
-
 # Copyright 2025 The Bazel Authors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,21 +11,17 @@ load("@rules_java//java:defs.bzl", "java_test")
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+load("//src/test/kotlin/io/bazel/kotlin:defs.bzl", "kt_rules_test")
+
 package(default_visibility = ["//src:__subpackages__"])
 
-java_test(
+kt_rules_test(
     name = "BuildToolsAPICompilerTest",
     size = "small",
     srcs = ["BuildToolsAPICompilerTest.java"],
-    data = [
-        "//src/main/kotlin/io/bazel/kotlin/compiler",
-        "@com_github_jetbrains_kotlin//:home",
-    ],
-    test_class = "io.bazel.kotlin.compiler.BuildToolsAPICompilerTest",
     deps = [
-        "//src/main/kotlin/io/bazel/kotlin/builder/toolchain",
         "//src/main/kotlin/io/bazel/kotlin/compiler",
-        "//kotlin/compiler:kotlin-stdlib",
         "@kotlin_rules_maven//:com_google_truth_truth",
         "@kotlin_rules_maven//:junit_junit",
     ],

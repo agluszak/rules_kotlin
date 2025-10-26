@@ -22,7 +22,6 @@ import com.google.devtools.build.lib.view.proto.Deps
 import io.bazel.kotlin.builder.tasks.jvm.JDepsGenerator.emptyJdeps
 import io.bazel.kotlin.builder.tasks.jvm.JDepsGenerator.writeJdeps
 import io.bazel.kotlin.builder.toolchain.CompilationTaskContext
-import io.bazel.kotlin.builder.toolchain.KotlinToolchain
 import io.bazel.kotlin.builder.utils.IS_JVM_SOURCE_FILE
 import io.bazel.kotlin.builder.utils.bazelRuleKind
 import io.bazel.kotlin.builder.utils.jars.JarCreator
