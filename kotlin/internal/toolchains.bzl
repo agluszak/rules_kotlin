@@ -100,6 +100,7 @@ def _kotlin_toolchain_impl(ctx):
         jacocorunner = ctx.attr.jacocorunner,
         experimental_prune_transitive_deps = ctx.attr._experimental_prune_transitive_deps[BuildSettingInfo].value,
         experimental_strict_associate_dependencies = ctx.attr._experimental_strict_associate_dependencies[BuildSettingInfo].value,
+        link_stdlib = ctx.attr.link_stdlib,
     )
 
     return [
@@ -275,6 +276,11 @@ _kt_toolchain = rule(
                 "2.3",
             ],
         ),
+        "link_stdlib": attr.bool(
+            doc = """Link Kotlin stdlib automatically. Set to False when the platform provides its own stdlib
+            (e.g., IntelliJ plugin development).""",
+            default = True,
+        ),
         "_empty_jar": attr.label(
             doc = """Empty jar for exporting JavaInfos.""",
             allow_single_file = True,
@@ -345,6 +351,7 @@ def define_kt_toolchain(
         jvm_stdlibs = None,
         jvm_runtime = None,
         jacocorunner = None,
+        link_stdlib = None,
         exec_compatible_with = None,
         target_compatible_with = None,
         target_settings = None):
@@ -374,6 +381,7 @@ def define_kt_toolchain(
         kotlinc_options = kotlinc_options,
         visibility = ["//visibility:public"],
         jacocorunner = jacocorunner,
+        link_stdlib = link_stdlib if link_stdlib != None else True,
         jvm_stdlibs = jvm_stdlibs if jvm_stdlibs != None else [
             Label("//kotlin/compiler:annotations"),
             Label("//kotlin/compiler:kotlin-stdlib"),

@@ -28,11 +28,15 @@ def _jvm_deps(ctx, toolchains, associate_deps, deps = [], deps_java_infos = [], 
         toolchains = toolchains,
         associates = associate_deps,
     )
+
+    # Conditionally include stdlib based on toolchain config
+    stdlib_deps = [toolchains.kt.jvm_stdlibs] if toolchains.kt.link_stdlib else []
+
     dep_infos = (
         deps_java_infos +
         [_java_info(d) for d in deps] +
         associates.dep_infos +
-        [toolchains.kt.jvm_stdlibs]
+        stdlib_deps
     )
 
     # Reduced classpath, exclude transitive deps from compilation
