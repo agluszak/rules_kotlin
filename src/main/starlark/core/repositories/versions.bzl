@@ -138,5 +138,12 @@ versions = struct(
         ],
         sha256 = "8769e5647557e3700919c32d508f5c5dad53c5d8234cd10846354fbcff14aa24",
     ),
+    KOTLINX_COROUTINES_CORE_JVM = version(
+        version = "1.10.2",
+        url_templates = [
+            "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/{version}/kotlinx-coroutines-core-jvm-{version}.jar",
+        ],
+        sha256 = "5ca175b38df331fd64155b35cd8cae1251fa9ee369709b36d42e0a288ccce3fd",
+    ),
     use_repository = _use_repository,
 )

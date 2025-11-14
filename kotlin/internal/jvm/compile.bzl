@@ -436,7 +436,7 @@ def _run_ksp_builder_actions(
         annotation_processors,
         transitive_runtime_jars,
         plugins):
-    """Runs KSP using the KotlinBuilder tool
+    """Runs KSP2 as a standalone tool (not through KotlinBuilder)
 
     Returns:
         A struct containing KSP outputs
@@ -444,23 +444,124 @@ def _run_ksp_builder_actions(
     ksp_generated_java_srcjar = ctx.actions.declare_file(ctx.label.name + "-ksp-kt-gensrc.jar")
     ksp_generated_classes_jar = ctx.actions.declare_file(ctx.label.name + "-ksp-kt-genclasses.jar")
 
-    _run_kt_builder_action(
-        ctx = ctx,
-        rule_kind = rule_kind,
-        toolchains = toolchains,
-        srcs = srcs,
-        generated_src_jars = [],
-        compile_deps = compile_deps,
-        deps_artifacts = deps_artifacts,
-        annotation_processors = annotation_processors,
-        transitive_runtime_jars = transitive_runtime_jars,
-        plugins = plugins,
-        outputs = {
-            "ksp_generated_classes_jar": ksp_generated_classes_jar,
-            "ksp_generated_java_srcjar": ksp_generated_java_srcjar,
-        },
-        build_kotlin = False,
-        mnemonic = "KotlinKsp",
+    # Declare output directories
+    ksp_kotlin_output_dir = ctx.actions.declare_directory(ctx.label.name + "-ksp-kotlin")
+    ksp_java_output_dir = ctx.actions.declare_directory(ctx.label.name + "-ksp-java")
+    ksp_class_output_dir = ctx.actions.declare_directory(ctx.label.name + "-ksp-classes")
+    ksp_resource_output_dir = ctx.actions.declare_directory(ctx.label.name + "-ksp-resources")
+
+    # Build arguments for KSP2
+    args = ctx.actions.args()
+    args.add("-jvm-target", toolchains.kt.jvm_target)
+    args.add("-module-name", compile_deps.module_name)
+    args.add("-source-roots", ":".join([f.path for f in srcs.kt + srcs.java]))
+    args.add("-project-base-dir", ctx.bin_dir.path)
+    args.add("-output-base-dir", ctx.bin_dir.path)
+    args.add("-caches-dir", ctx.bin_dir.path + "/" + ctx.label.name + "-ksp-caches")
+    args.add("-class-output-dir", ksp_class_output_dir.path)
+    args.add("-kotlin-output-dir", ksp_kotlin_output_dir.path)
+    args.add("-java-output-dir", ksp_java_output_dir.path)
+    args.add("-resource-output-dir", ksp_resource_output_dir.path)
+    args.add("-language-version", toolchains.kt.language_version)
+    args.add("-api-version", toolchains.kt.api_version)
+
+    # Add libraries (classpath)
+    if compile_deps.compile_jars:
+        args.add_joined("-libraries", compile_deps.compile_jars, join_with = ":")
+
+    # Add processor JARs as positional arguments at the end
+    if transitive_runtime_jars:
+        args.add_all(transitive_runtime_jars)
+
+    # Invoke KSP2 via java_binary wrapper
+    ctx.actions.run(
+        mnemonic = "KotlinKsp2",
+        inputs = depset(
+            direct = srcs.all_srcs,
+            transitive = [compile_deps.compile_jars, transitive_runtime_jars],
+        ),
+        outputs = [
+            ksp_kotlin_output_dir,
+            ksp_java_output_dir,
+            ksp_class_output_dir,
+            ksp_resource_output_dir,
+        ],
+        executable = ctx.executable._ksp2_tool,
+        arguments = [args],
+        progress_message = "Running KSP2 for %{label}",
+    )
+
+    # Package generated sources into srcjar using zipper
+    # Tree artifacts (directories) can only be expanded at execution time
+    ctx.actions.run_shell(
+        mnemonic = "KspGenSrcJar",
+        inputs = [ksp_kotlin_output_dir, ksp_java_output_dir],
+        outputs = [ksp_generated_java_srcjar],
+        command = """
+            set -e
+            ZIPPER="$PWD/{zipper}"
+            OUTPUT="$PWD/{output}"
+            WORKDIR=$(mktemp -d)
+            FILELIST=$(mktemp)
+            # Copy all generated files to temp directory
+            [ -d "{kotlin_dir}" ] && [ "$(ls -A {kotlin_dir})" ] && cp -rL {kotlin_dir}/* "$WORKDIR/" 2>/dev/null || true
+            [ -d "{java_dir}" ] && [ "$(ls -A {java_dir})" ] && cp -rL {java_dir}/* "$WORKDIR/" 2>/dev/null || true
+            # Create jar using zipper
+            if [ "$(ls -A "$WORKDIR")" ]; then
+                (cd "$WORKDIR" && find . \\( -type f -o -type d \\) | sed 's|^\\./||' | sed '/^$/d' | grep -v '^\\.$' | while IFS= read -r f; do echo "$f=$WORKDIR/$f"; done) > "$FILELIST"
+                "$ZIPPER" c "$OUTPUT" @"$FILELIST"
+            else
+                # Create empty jar with manifest
+                mkdir -p "$WORKDIR/META-INF"
+                echo "Manifest-Version: 1.0" > "$WORKDIR/META-INF/MANIFEST.MF"
+                echo "META-INF/MANIFEST.MF=$WORKDIR/META-INF/MANIFEST.MF" > "$FILELIST"
+                "$ZIPPER" c "$OUTPUT" @"$FILELIST"
+            fi
+            rm -rf "$WORKDIR" "$FILELIST"
+        """.format(
+            zipper = ctx.executable._zipper.path,
+            output = ksp_generated_java_srcjar.path,
+            kotlin_dir = ksp_kotlin_output_dir.path,
+            java_dir = ksp_java_output_dir.path,
+        ),
+        tools = [ctx.executable._zipper],
+        progress_message = "Packaging KSP generated sources for %{label}",
+    )
+
+    # Package generated classes into jar using zipper
+    ctx.actions.run_shell(
+        mnemonic = "KspGenClassJar",
+        inputs = [ksp_class_output_dir, ksp_resource_output_dir],
+        outputs = [ksp_generated_classes_jar],
+        command = """
+            set -e
+            ZIPPER="$PWD/{zipper}"
+            OUTPUT="$PWD/{output}"
+            WORKDIR=$(mktemp -d)
+            FILELIST=$(mktemp)
+            # Copy all generated files to temp directory
+            [ -d "{class_dir}" ] && [ "$(ls -A {class_dir})" ] && cp -rL {class_dir}/* "$WORKDIR/" 2>/dev/null || true
+            [ -d "{resource_dir}" ] && [ "$(ls -A {resource_dir})" ] && cp -rL {resource_dir}/* "$WORKDIR/" 2>/dev/null || true
+            # Create jar using zipper
+            if [ "$(ls -A "$WORKDIR")" ]; then
+                (cd "$WORKDIR" && find . \\( -type f -o -type d \\) | sed 's|^\\./||' | sed '/^$/d' | grep -v '^\\.$' | while IFS= read -r f; do echo "$f=$WORKDIR/$f"; done) > "$FILELIST"
+                "$ZIPPER" c "$OUTPUT" @"$FILELIST"
+            else
+                # Create empty jar with manifest
+                mkdir -p "$WORKDIR/META-INF"
+                echo "Manifest-Version: 1.0" > "$WORKDIR/META-INF/MANIFEST.MF"
+                echo "META-INF/MANIFEST.MF=$WORKDIR/META-INF/MANIFEST.MF" > "$FILELIST"
+                "$ZIPPER" c "$OUTPUT" @"$FILELIST"
+            fi
+            rm -rf "$WORKDIR" "$FILELIST"
+        """.format(
+            zipper = ctx.executable._zipper.path,
+            output = ksp_generated_classes_jar.path,
+            class_dir = ksp_class_output_dir.path,
+            resource_dir = ksp_resource_output_dir.path,
+        ),
+        tools = [ctx.executable._zipper],
+        progress_message = "Packaging KSP generated classes for %{label}",
     )
 
     return struct(ksp_generated_class_jar = ksp_generated_classes_jar, ksp_generated_src_jar = ksp_generated_java_srcjar)

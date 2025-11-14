@@ -384,18 +384,51 @@ def kt_compiler_deps_aspect_impl(target, ctx):
     ]
 
 def _reshade_embedded_kotlinc_jars(target, ctx, jars, deps):
-    reshaded = [
+    reshaded = []
+    for jar in jars:
+        # First, run jarjar to reshade the JAR
+        temp_reshaded = ctx.actions.declare_file(
+            "%s_temp_reshaded_%s" % (target.label.name, jar.basename),
+        )
         jarjar_action(
             actions = ctx.actions,
             jarjar = ctx.executable._jarjar,
             rules = ctx.file._kotlin_compiler_reshade_rules,
             input = jar,
-            output = ctx.actions.declare_file(
-                "%s_reshaded_%s" % (target.label.name, jar.basename),
-            ),
+            output = temp_reshaded,
         )
-        for jar in jars
-    ]
+
+        # Then, preserve META-INF/services from the original JAR for KSP2 ServiceLoader discovery
+        final_reshaded = ctx.actions.declare_file(
+            "%s_reshaded_%s" % (target.label.name, jar.basename),
+        )
+        ctx.actions.run_shell(
+            inputs = [jar, temp_reshaded],
+            outputs = [final_reshaded],
+            command = """
+                set -e
+                # Copy the reshaded JAR as base
+                cp "{temp}" "{output}"
+                # Extract and add META-INF/services from original JAR if it exists
+                if unzip -l "{original}" | grep -q "META-INF/services/"; then
+                    TMPDIR=$(mktemp -d)
+                    cd "$TMPDIR"
+                    unzip -q "{original}" 'META-INF/services/*' 2>/dev/null || true
+                    if [ -d "META-INF/services" ]; then
+                        zip -q -r "{output}" META-INF/services/
+                    fi
+                    cd - > /dev/null
+                    rm -rf "$TMPDIR"
+                fi
+            """.format(
+                original = jar.path,
+                temp = temp_reshaded.path,
+                output = final_reshaded.path,
+            ),
+            mnemonic = "PreserveKspServices",
+            progress_message = "Preserving META-INF/services in %s" % jar.basename,
+        )
+        reshaded.append(final_reshaded)
 
     # JavaInfo only takes a single jar, so create many and merge them.
     return java_common.merge(

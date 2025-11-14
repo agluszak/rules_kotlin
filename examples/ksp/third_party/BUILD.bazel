@@ -42,9 +42,11 @@ kt_compiler_plugin(
     visibility = ["//visibility:public"],
     deps = [
         "@rules_kotlin//kotlin/compiler:symbol-processing-api",
-        "@rules_kotlin//kotlin/compiler:symbol-processing-cmdline",
     ],
 )
+
+# NOTE: This kt_compiler_plugin is for KSP1 (compiler plugin approach) and is now obsolete.
+# KSP2 uses standalone invocation via kt_ksp_plugin (see below).
 
 kt_plugin_cfg(
     name = "ksp_moshi",

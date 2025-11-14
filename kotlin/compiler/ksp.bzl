@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_java//java:defs.bzl", "java_binary", "java_import")
 load("//kotlin:jvm.bzl", "kt_jvm_import")
 load("//kotlin/internal:defs.bzl", _KSP_COMPILER_PLUGIN_REPO = "KSP_COMPILER_PLUGIN_REPO")
 
@@ -27,8 +28,13 @@ def kt_configure_ksp():
         fail("kt_configure_ksp must be called in kotlin/compiler not %s" % native.package_name())
 
     kt_jvm_import(
-        name = "symbol-processing",
-        jar = _KSP_COMPILER_PLUGIN_REPO_PREFIX + "symbol-processing.jar",
+        name = "symbol-processing-aa",
+        jar = _KSP_COMPILER_PLUGIN_REPO_PREFIX + "symbol-processing-aa.jar",
+    )
+
+    kt_jvm_import(
+        name = "symbol-processing-common-deps",
+        jar = _KSP_COMPILER_PLUGIN_REPO_PREFIX + "symbol-processing-common-deps.jar",
     )
 
     kt_jvm_import(
@@ -36,7 +42,30 @@ def kt_configure_ksp():
         jar = _KSP_COMPILER_PLUGIN_REPO_PREFIX + "symbol-processing-api.jar",
     )
 
-    kt_jvm_import(
-        name = "symbol-processing-cmdline",
-        jar = _KSP_COMPILER_PLUGIN_REPO_PREFIX + "symbol-processing-cmdline.jar",
+    # Wrap Kotlin stdlib JARs with java_import for KSP2
+    java_import(
+        name = "_ksp2_kotlinx_coroutines",
+        jars = ["@com_github_jetbrains_kotlin_git//:lib/kotlinx-coroutines-core-jvm_jar"],
+    )
+
+    java_import(
+        name = "_ksp2_kotlin_stdlib",
+        jars = [
+            "@com_github_jetbrains_kotlin_git//:lib/kotlin-stdlib_jar",
+            "@com_github_jetbrains_kotlin_git//:lib/kotlin-stdlib-jdk7_jar",
+            "@com_github_jetbrains_kotlin_git//:lib/kotlin-stdlib-jdk8_jar",
+        ],
+    )
+
+    # KSP2 standalone tool wrapper
+    java_binary(
+        name = "ksp2_jvm",
+        main_class = "com.google.devtools.ksp.cmdline.KSPJvmMain",
+        runtime_deps = [
+            ":symbol-processing-aa",
+            ":symbol-processing-common-deps",
+            ":symbol-processing-api",
+            ":_ksp2_kotlinx_coroutines",
+            ":_ksp2_kotlin_stdlib",
+        ],
     )
