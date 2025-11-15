@@ -14,9 +14,14 @@
 
 load("@rules_java//java:defs.bzl", "java_binary", "java_import")
 load("//kotlin:jvm.bzl", "kt_jvm_import")
-load("//kotlin/internal:defs.bzl", _KSP_COMPILER_PLUGIN_REPO = "KSP_COMPILER_PLUGIN_REPO")
+load(
+    "//kotlin/internal:defs.bzl",
+    _KSP_COMPILER_PLUGIN_REPO = "KSP_COMPILER_PLUGIN_REPO",
+    _KT_COMPILER_REPO = "KT_COMPILER_REPO",
+)
 
 _KSP_COMPILER_PLUGIN_REPO_PREFIX = "@" + _KSP_COMPILER_PLUGIN_REPO + "//:"
+_KT_COMPILER_REPO_PREFIX = "@" + _KT_COMPILER_REPO + "//:"
 
 def kt_configure_ksp():
     """
@@ -45,15 +50,15 @@ def kt_configure_ksp():
     # Wrap Kotlin stdlib JARs with java_import for KSP2
     java_import(
         name = "_ksp2_kotlinx_coroutines",
-        jars = ["@com_github_jetbrains_kotlin_git//:lib/kotlinx-coroutines-core-jvm_jar"],
+        jars = [_KT_COMPILER_REPO_PREFIX + "kotlinx-coroutines-core-jvm"],
     )
 
     java_import(
         name = "_ksp2_kotlin_stdlib",
         jars = [
-            "@com_github_jetbrains_kotlin_git//:lib/kotlin-stdlib_jar",
-            "@com_github_jetbrains_kotlin_git//:lib/kotlin-stdlib-jdk7_jar",
-            "@com_github_jetbrains_kotlin_git//:lib/kotlin-stdlib-jdk8_jar",
+            _KT_COMPILER_REPO_PREFIX + "kotlin-stdlib",
+            _KT_COMPILER_REPO_PREFIX + "kotlin-stdlib-jdk7",
+            _KT_COMPILER_REPO_PREFIX + "kotlin-stdlib-jdk8",
         ],
     )
 

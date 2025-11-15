@@ -454,7 +454,13 @@ def _run_ksp_builder_actions(
     args = ctx.actions.args()
     args.add("-jvm-target", toolchains.kt.jvm_target)
     args.add("-module-name", compile_deps.module_name)
-    args.add("-source-roots", ":".join([f.path for f in srcs.kt + srcs.java]))
+    # KSP2 requires separate arguments for Kotlin and Java sources
+    # -source-roots should only contain Kotlin sources
+    # -java-source-roots should only contain Java sources
+    if srcs.kt:
+        args.add("-source-roots", ":".join([f.path for f in srcs.kt]))
+    if srcs.java:
+        args.add("-java-source-roots", ":".join([f.path for f in srcs.java]))
     args.add("-project-base-dir", ctx.bin_dir.path)
     args.add("-output-base-dir", ctx.bin_dir.path)
     args.add("-caches-dir", ctx.bin_dir.path + "/" + ctx.label.name + "-ksp-caches")
@@ -464,12 +470,15 @@ def _run_ksp_builder_actions(
     args.add("-resource-output-dir", ksp_resource_output_dir.path)
     args.add("-language-version", toolchains.kt.language_version)
     args.add("-api-version", toolchains.kt.api_version)
+    # Enable Java annotation processing
+    args.add("-map-annotation-arguments-in-java", "true")
 
     # Add libraries (classpath)
     if compile_deps.compile_jars:
         args.add_joined("-libraries", compile_deps.compile_jars, join_with = ":")
 
     # Add processor JARs as positional arguments at the end
+    # These are passed last as the <processor classpath> positional argument to KSP2
     if transitive_runtime_jars:
         args.add_all(transitive_runtime_jars)
 
