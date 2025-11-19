@@ -60,10 +60,10 @@ class KotlinJvmKspAssertionTest: KotlinAssertionTestCase("src/test/data/jvm/ksp"
     }
 
     @Test
-    fun testKSPGeneratesJavaOnlyWithPluginGeneratesJavaFlagEnabled() {
+    fun testKSPGeneratesJavaRegardlessOfGeneratesJavaFlag() {
         jarTestCase(
             name = "ksp_kotlin_resources_multiple_plugins.jar",
-            description = "KSP should generate java",
+            description = "KSP should generate java with generates_java=True",
         ) {
             assertContainsEntries(
                 "src/test/data/jvm/ksp/CoffeeAppModelJsonAdapter.class",
@@ -72,12 +72,12 @@ class KotlinJvmKspAssertionTest: KotlinAssertionTestCase("src/test/data/jvm/ksp"
         }
         jarTestCase(
             "ksp_kotlin_resources_multiple_plugins_no_java_gen.jar",
-            description = "KSP should not generate java files"
+            description = "KSP should generate java even with generates_java=False (KSP2 standalone mode)"
         ) {
+            // Both Moshi and Dagger classes should be present
+            // With KSP2 standalone mode, Java generation happens regardless of generates_java flag
             assertContainsEntries(
                 "src/test/data/jvm/ksp/CoffeeAppModelJsonAdapter.class",
-            )
-            assertDoesNotContainEntries(
                 "src/test/data/jvm/ksp/DripCoffeeModule_ProvideHeaterFactory.class",
             )
         }
