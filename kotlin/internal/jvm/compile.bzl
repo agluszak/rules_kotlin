@@ -545,16 +545,13 @@ def _run_ksp_builder_actions(
     args.add("-jvm-target", toolchains.kt.jvm_target)
     args.add("-module-name", compile_deps.module_name)
 
-    # KSP2 requires separate arguments for Kotlin and Java sources
-    # -source-roots should only contain Kotlin sources
-    # -java-source-roots should only contain Java sources
-    if srcs.kt or srcs.java:
-        args.add("-source-rotos", ":".join([f.path for f in srcs.kt] + [f.path for f in srcs.java]))
-        print("KSP2 Kotlin sources: %s" % ", ".join([f.path for f in srcs.kt]))
+    if srcs.kt:
+        args.add("-source-roots", ":".join([f.path for f in srcs.kt]))
     if srcs.java:
         args.add("-java-source-roots", ":".join([f.path for f in srcs.java]))
-        print("KSP2 Java sources: %s" % ", ".join([f.path for f in srcs.java]))
-    args.add("-project-base-dir", ctx.bin_dir.path)
+
+    # Project base dir should be execution root so all paths work correctly
+    args.add("-project-base-dir", ".")
     args.add("-output-base-dir", ctx.bin_dir.path)
     args.add("-caches-dir", ctx.bin_dir.path + "/" + ctx.label.name + "-ksp-caches")
     args.add("-class-output-dir", ksp_class_output_dir.path)
@@ -564,11 +561,11 @@ def _run_ksp_builder_actions(
     args.add("-language-version", toolchains.kt.language_version)
     args.add("-api-version", toolchains.kt.api_version)
 
+    # Add JDK home for Java symbol resolution
+    args.add("-jdk-home", toolchains.java_runtime.java_home)
+
     # Enable Java annotation processing
     args.add("-map-annotation-arguments-in-java=true")
-
-    # Add processor options for verbose logging
-    args.add("-processor-options=autoserviceKsp.verbose=true:autoserviceKsp.verify=true")
 
     # Add libraries (classpath)
     if compile_deps.compile_jars:
@@ -584,7 +581,7 @@ def _run_ksp_builder_actions(
         mnemonic = "KotlinKsp2",
         inputs = depset(
             direct = srcs.all_srcs,
-            transitive = [compile_deps.compile_jars, transitive_runtime_jars],
+            transitive = [compile_deps.compile_jars, transitive_runtime_jars, toolchains.java_runtime.files],
         ),
         outputs = [
             ksp_kotlin_output_dir,

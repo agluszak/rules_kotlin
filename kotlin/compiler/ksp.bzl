@@ -73,4 +73,5 @@ def kt_configure_ksp():
             ":_ksp2_kotlinx_coroutines",
             ":_ksp2_kotlin_stdlib",
         ],
+        jvm_flags = ["-Dksp.logging=debug"],
     )

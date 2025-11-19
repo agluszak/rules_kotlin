@@ -79,7 +79,7 @@ rm GeneratedModule.kt
 kt_jvm_library(
     name = "generated_lib",
     srcs = [":genereated_module_src"],
-    plugins = ["//third_party:dagger_ksp_plugin"],
+    plugins = ["//third_party:dagger"],
     deps = ["@maven_rules_kotlin_example//:com_google_dagger_dagger"],
 )
 
@@ -94,8 +94,8 @@ kt_jvm_library(
         ":chai_lib_src",
     ],
     plugins = [
-        "//third_party:dagger_ksp_plugin",
-        "//third_party:moshi-kotlin-codegen",
+        "//third_party:dagger",
+        "//third_party:moshi",
         "//third_party:autovalue",
         "//third_party:autoservice",
     ],
@@ -130,8 +130,7 @@ kt_jvm_library(
     name = "raw_ksp_coffee_app_lib",
     srcs = ["CoffeeAppModel.kt"],
     plugins = [
-        "//third_party:ksp",
-        "//third_party:ksp_moshi",
+        "//third_party:moshi",
     ],
     deps = [
         "@maven_rules_kotlin_example//:com_google_auto_service_auto_service_annotations",
