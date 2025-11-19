@@ -38,7 +38,6 @@ load(
 )
 load(
     "//kotlin/internal/jvm:plugins.bzl",
-    "is_ksp_processor_generating_java",
     _plugin_mappers = "mappers",
 )
 load(

@@ -643,7 +643,9 @@ kt_jvm_library(
             aspects = [_kt_compiler_deps_aspect],
         ),
         "generates_java": attr.bool(
-            doc = """Runs Java compilation action for plugin generating Java output.""",
+            doc = """Runs Java compilation action for plugin generating Java output. 
+            Note: For KSP2 standalone mode, Java compilation will run automatically if any sources are generated, 
+            regardless of this flag.""",
             default = False,
         ),
         "processor_class": attr.string(
