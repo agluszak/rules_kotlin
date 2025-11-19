@@ -38,7 +38,6 @@ load(
 )
 load(
     "//kotlin/internal/jvm:plugins.bzl",
-    "is_ksp_processor_generating_java",
     _plugin_mappers = "mappers",
 )
 load(
@@ -904,7 +903,10 @@ def _run_kt_java_builder_actions(
     # Build Java
     # If there is Java source or KAPT/KSP generated Java source compile that Java and fold it into
     # the final ABI jar. Otherwise just use the KT ABI jar as final ABI jar.
-    ksp_generated_java_src_jars = generated_ksp_src_jars and is_ksp_processor_generating_java(ctx.attr.plugins)
+    # Note: For KSP2 standalone mode, we always include generated_ksp_src_jars in the condition
+    # because KSP2 might generate Java code even if generates_java flag is not set on the plugin.
+    # The generates_java flag is primarily for KSP1 compiler plugin mode.
+    ksp_generated_java_src_jars = generated_ksp_src_jars
     if srcs.java or generated_kapt_src_jars or srcs.src_jars or ksp_generated_java_src_jars:
         javac_opts = javac_options_to_flags(ctx.attr.javac_opts[JavacOptions] if ctx.attr.javac_opts else toolchains.kt.javac_options)
         javac_opts.extend([
