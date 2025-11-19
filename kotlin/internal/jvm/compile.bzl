@@ -548,10 +548,12 @@ def _run_ksp_builder_actions(
     # KSP2 requires separate arguments for Kotlin and Java sources
     # -source-roots should only contain Kotlin sources
     # -java-source-roots should only contain Java sources
-    if srcs.kt:
-        args.add("-source-roots", ":".join([f.path for f in srcs.kt]))
+    if srcs.kt or srcs.java:
+        args.add("-source-rotos", ":".join([f.path for f in srcs.kt] + [f.path for f in srcs.java]))
+        print("KSP2 Kotlin sources: %s" % ", ".join([f.path for f in srcs.kt]))
     if srcs.java:
         args.add("-java-source-roots", ":".join([f.path for f in srcs.java]))
+        print("KSP2 Java sources: %s" % ", ".join([f.path for f in srcs.java]))
     args.add("-project-base-dir", ctx.bin_dir.path)
     args.add("-output-base-dir", ctx.bin_dir.path)
     args.add("-caches-dir", ctx.bin_dir.path + "/" + ctx.label.name + "-ksp-caches")
@@ -564,6 +566,9 @@ def _run_ksp_builder_actions(
 
     # Enable Java annotation processing
     args.add("-map-annotation-arguments-in-java=true")
+
+    # Add processor options for verbose logging
+    args.add("-processor-options=autoserviceKsp.verbose=true:autoserviceKsp.verify=true")
 
     # Add libraries (classpath)
     if compile_deps.compile_jars:

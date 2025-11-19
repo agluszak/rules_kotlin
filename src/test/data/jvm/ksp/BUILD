@@ -126,6 +126,16 @@ kt_jvm_library(
 )
 
 kt_jvm_library(
+    name = "ksp_only_java",
+    srcs = [
+        "CoffeeAppService.java",
+        "CoffeeAppServiceUsage.kt",
+    ],
+    plugins = [":autoservice"],
+    deps = ["@kotlin_rules_maven//:dev_zacsweers_autoservice_auto_service_ksp"],
+)
+
+kt_jvm_library(
     name = "ksp_mixed_resources_multiple_plugins",
     srcs = [
         "CoffeeApp.kt",
@@ -188,6 +198,7 @@ filegroup(
         ":ksp_kotlin_resources_multiple_plugins_no_java_gen.jar",
         ":ksp_mixed_resources.jar",
         ":ksp_mixed_resources_multiple_plugins.jar",
+        ":ksp_only_java.jar",
     ],
     visibility = ["//visibility:public"],
 )

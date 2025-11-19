@@ -28,6 +28,19 @@ class KotlinJvmKspAssertionTest: KotlinAssertionTestCase("src/test/data/jvm/ksp"
     }
 
     @Test
+    fun testJavaOnlyKSP() {
+        jarTestCase(
+            name = "ksp_only_java.jar",
+            description = "KSP should work with java",
+        ) {
+            assertContainsEntries(
+              "META-INF/services/",
+              "META-INF/services/java.lang.Object",
+            )
+        }
+    }
+
+    @Test
     fun testMixedModeKSP() {
         jarTestCase(
             name = "ksp_mixed_resources.jar",
