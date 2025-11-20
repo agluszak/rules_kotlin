@@ -543,10 +543,17 @@ def _run_ksp_builder_actions(
     # Build arguments for KSP2
     args = ctx.actions.args()
     args.add("-jvm-target", toolchains.kt.jvm_target)
-    args.add("-module-name", compile_deps.module_name)
 
+    # Use format to create -module-name=value to avoid issues when module name starts with -
+    args.add(compile_deps.module_name, format = "-module-name=%s")
+
+    # KSP2 requires source-roots to be provided even if empty
     if srcs.kt:
         args.add("-source-roots", ":".join([f.path for f in srcs.kt]))
+    else:
+        # Provide empty source roots if no Kotlin files
+        args.add("-source-roots", "")
+
     if srcs.java:
         args.add("-java-source-roots", ":".join([f.path for f in srcs.java]))
 
@@ -594,14 +601,24 @@ def _run_ksp_builder_actions(
         progress_message = "Running KSP2 for %{label}",
     )
 
-    # Package generated sources into srcjar using zipper
+    # Package Kotlin and Java generated sources into separate srcjars
+    ksp_generated_kotlin_srcjar = ctx.actions.declare_file(ctx.label.name + "-ksp-kt.srcjar")
+    _package_tree_artifacts_to_jar(
+        ctx,
+        rule_kind = rule_kind,
+        toolchains = toolchains,
+        output_jar = ksp_generated_kotlin_srcjar,
+        input_dirs = [ksp_kotlin_output_dir],
+        action_type = "KspGenKtSrc",
+    )
+
     _package_tree_artifacts_to_jar(
         ctx,
         rule_kind = rule_kind,
         toolchains = toolchains,
         output_jar = ksp_generated_java_srcjar,
-        input_dirs = [ksp_kotlin_output_dir, ksp_java_output_dir],
-        action_type = "KspGenSrc",
+        input_dirs = [ksp_java_output_dir],
+        action_type = "KspGenJavaSrc",
     )
 
     # Package generated classes into jar using zipper
@@ -614,7 +631,11 @@ def _run_ksp_builder_actions(
         action_type = "KspGenClass",
     )
 
-    return struct(ksp_generated_class_jar = ksp_generated_classes_jar, ksp_generated_src_jar = ksp_generated_java_srcjar)
+    return struct(
+        ksp_generated_class_jar = ksp_generated_classes_jar,
+        ksp_generated_kotlin_srcjar = ksp_generated_kotlin_srcjar,
+        ksp_generated_java_srcjar = ksp_generated_java_srcjar,
+    )
 
 def _run_kt_builder_action(
         ctx,
@@ -980,7 +1001,8 @@ def _run_kt_java_builder_actions(
 
     # Run KSP
     ksp_generated_class_jar = None
-    ksp_generated_src_jar = None
+    ksp_generated_kotlin_srcjar = None
+    ksp_generated_java_srcjar = None
     if has_kt_sources and ksp_annotation_processors:
         ksp_outputs = _run_ksp_builder_actions(
             ctx,
@@ -995,10 +1017,40 @@ def _run_kt_java_builder_actions(
         )
         ksp_generated_class_jar = ksp_outputs.ksp_generated_class_jar
         output_jars.append(ksp_generated_class_jar)
-        ksp_generated_src_jar = ksp_outputs.ksp_generated_src_jar
-        generated_ksp_src_jars.append(ksp_generated_src_jar)
+        ksp_generated_kotlin_srcjar = ksp_outputs.ksp_generated_kotlin_srcjar
+        ksp_generated_java_srcjar = ksp_outputs.ksp_generated_java_srcjar
 
     java_infos = []
+
+    # Compile KSP-generated Java FIRST if KSP generated Java files AND we have KAPT
+    # This allows Kotlin code to reference the compiled Java classes
+    # If no KAPT ran, we'll compile KSP Java together with user Java sources later
+    ksp_java_compiled_jar = None
+    if ksp_generated_java_srcjar and is_ksp_processor_generating_java(ctx.attr.plugins) and annotation_processors:
+        javac_opts = javac_options_to_flags(ctx.attr.javac_opts[JavacOptions] if ctx.attr.javac_opts else toolchains.kt.javac_options)
+        javac_opts.extend([
+            flag
+            for plugin in ctx.attr.plugins
+            if JavacOptions in plugin
+            for flag in javac_options_to_flags(plugin[JavacOptions])
+        ])
+        javac_opts.append("-proc:none")
+
+        ksp_java_info = java_common.compile(
+            ctx,
+            source_files = [],
+            source_jars = [ksp_generated_java_srcjar],
+            output = ctx.actions.declare_file(ctx.label.name + "-ksp-java.jar"),
+            deps = compile_deps.deps + kt_stubs_for_java + [p[JavaInfo] for p in ctx.attr.plugins if JavaInfo in p],
+            java_toolchain = toolchains.java,
+            javac_opts = javac_opts,
+            neverlink = getattr(ctx.attr, "neverlink", False),
+            strict_deps = toolchains.kt.experimental_strict_kotlin_deps,
+        )
+        ksp_java_outputs = ksp_java_info.java_outputs if hasattr(ksp_java_info, "java_outputs") else ksp_java_info.outputs.jars
+        ksp_java_compiled_jar = ksp_java_outputs[0].class_jar
+        output_jars.append(ksp_java_compiled_jar)
+        java_infos.append(ksp_java_info)
 
     # Build Kotlin
     if has_kt_sources:
@@ -1020,13 +1072,30 @@ def _run_kt_java_builder_actions(
             kt_jdeps = ctx.actions.declare_file(ctx.label.name + "-kt.jdeps")
             outputs["kotlin_output_jdeps"] = kt_jdeps
 
+        # Only pass KSP-generated Kotlin sources (not Java) to Kotlin compiler
+        kt_generated_src_jars = generated_kapt_src_jars
+        if ksp_generated_kotlin_srcjar:
+            kt_generated_src_jars = kt_generated_src_jars + [ksp_generated_kotlin_srcjar]
+
+        # If KSP generated Java and we compiled it, add to Kotlin's classpath
+        kt_compile_deps = compile_deps
+        if ksp_java_compiled_jar:
+            kt_compile_deps = struct(
+                module_name = compile_deps.module_name,
+                compile_jars = depset([ksp_java_compiled_jar], transitive = [compile_deps.compile_jars]),
+                deps = compile_deps.deps,
+                runtime_deps = compile_deps.runtime_deps,
+                exports = compile_deps.exports,
+                associate_jars = compile_deps.associate_jars,
+            )
+
         _run_kt_builder_action(
             ctx = ctx,
             rule_kind = rule_kind,
             toolchains = toolchains,
             srcs = srcs,
-            generated_src_jars = generated_kapt_src_jars + generated_ksp_src_jars,
-            compile_deps = compile_deps,
+            generated_src_jars = kt_generated_src_jars,
+            compile_deps = kt_compile_deps,
             deps_artifacts = deps_artifacts,
             annotation_processors = [],
             transitive_runtime_jars = transitive_runtime_jars,
@@ -1052,11 +1121,15 @@ def _run_kt_java_builder_actions(
         )
         java_infos.append(kt_java_info)
 
-    # Build Java
+    # Build Java (user sources + KSP Java if not already compiled)
     # If there is Java source or KAPT/KSP generated Java source compile that Java and fold it into
     # the final ABI jar. Otherwise just use the KT ABI jar as final ABI jar.
-    ksp_generated_java_src_jars = generated_ksp_src_jars and is_ksp_processor_generating_java(ctx.attr.plugins)
-    if srcs.java or generated_kapt_src_jars or srcs.src_jars or ksp_generated_java_src_jars:
+    ksp_java_for_combined_compilation = []
+    if ksp_generated_java_srcjar and not ksp_java_compiled_jar:
+        # KSP Java wasn't compiled separately (no KAPT stubs), so include it here
+        ksp_java_for_combined_compilation = [ksp_generated_java_srcjar]
+
+    if srcs.java or generated_kapt_src_jars or srcs.src_jars or ksp_java_for_combined_compilation:
         javac_opts = javac_options_to_flags(ctx.attr.javac_opts[JavacOptions] if ctx.attr.javac_opts else toolchains.kt.javac_options)
         javac_opts.extend([
             flag
@@ -1072,7 +1145,7 @@ def _run_kt_java_builder_actions(
         java_info = java_common.compile(
             ctx,
             source_files = srcs.java,
-            source_jars = generated_kapt_src_jars + srcs.src_jars + generated_ksp_src_jars,
+            source_jars = generated_kapt_src_jars + srcs.src_jars + ksp_java_for_combined_compilation,
             output = ctx.actions.declare_file(ctx.label.name + "-java.jar"),
             deps = compile_deps.deps + kt_stubs_for_java + [p[JavaInfo] for p in ctx.attr.plugins if JavaInfo in p],
             java_toolchain = toolchains.java,
@@ -1127,7 +1200,8 @@ def _run_kt_java_builder_actions(
     if annotation_processors or ksp_annotation_processors:
         is_ksp = (ksp_annotation_processors != None)
         processor = ksp_annotation_processors if is_ksp else annotation_processors
-        gen_jar = ksp_generated_src_jar if is_ksp else ap_generated_src_jar
+        # For KSP, use Kotlin srcjar (Java was compiled separately)
+        gen_jar = ksp_generated_kotlin_srcjar if is_ksp else ap_generated_src_jar
         outputs_list = [java_info.outputs for java_info in java_infos]
         annotation_processing = _create_annotation_processing(
             annotation_processors = processor,
@@ -1135,9 +1209,16 @@ def _run_kt_java_builder_actions(
             ap_source_jar = gen_jar,
         )
 
+    # Collect all generated source jars
+    all_generated_src_jars = generated_kapt_src_jars
+    if ksp_generated_kotlin_srcjar:
+        all_generated_src_jars = all_generated_src_jars + [ksp_generated_kotlin_srcjar]
+    if ksp_generated_java_srcjar:
+        all_generated_src_jars = all_generated_src_jars + [ksp_generated_java_srcjar]
+
     return struct(
         output_jars = output_jars,
-        generated_src_jars = generated_kapt_src_jars + generated_ksp_src_jars,
+        generated_src_jars = all_generated_src_jars,
         annotation_processing = annotation_processing,
     )
 
