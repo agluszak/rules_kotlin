@@ -23,10 +23,6 @@ def _ksp_compiler_plugin_repository_impl(repository_ctx):
     # Remove unused .pom and checksum files files.
     repository_ctx.delete("com")
 
-    repository_ctx.file(
-        "WORKSPACE",
-        content = """workspace(name = "%s")""" % attr.name,
-    )
     repository_ctx.template(
         "BUILD.bazel",
         attr._template,

@@ -586,22 +586,21 @@ This macro registers the kotlin toolchain.
 <pre>
 load("@rules_kotlin//kotlin:repositories.doc.bzl", "kotlin_repositories")
 
-kotlin_repositories(<a href="#kotlin_repositories-is_bzlmod">is_bzlmod</a>, <a href="#kotlin_repositories-compiler_repository_name">compiler_repository_name</a>, <a href="#kotlin_repositories-ksp_repository_name">ksp_repository_name</a>, <a href="#kotlin_repositories-compiler_release">compiler_release</a>,
+kotlin_repositories(<a href="#kotlin_repositories-compiler_repository_name">compiler_repository_name</a>, <a href="#kotlin_repositories-ksp_repository_name">ksp_repository_name</a>, <a href="#kotlin_repositories-compiler_release">compiler_release</a>,
                     <a href="#kotlin_repositories-ksp_compiler_release">ksp_compiler_release</a>)
 </pre>
 
-Call this in the WORKSPACE file to setup the Kotlin rules.
+Setup the Kotlin compiler and KSP repositories.
 
 **PARAMETERS**
 
 
 | Name  | Description | Default Value |
 | :------------- | :------------- | :------------- |
-| <a id="kotlin_repositories-is_bzlmod"></a>is_bzlmod |  <p align="center"> - </p>   |  `False` |
 | <a id="kotlin_repositories-compiler_repository_name"></a>compiler_repository_name |  for the kotlinc compiler repository.   |  `"com_github_jetbrains_kotlin"` |
-| <a id="kotlin_repositories-ksp_repository_name"></a>ksp_repository_name |  <p align="center"> - </p>   |  `"com_github_google_ksp"` |
+| <a id="kotlin_repositories-ksp_repository_name"></a>ksp_repository_name |  for the KSP compiler plugin repository.   |  `"com_github_google_ksp"` |
 | <a id="kotlin_repositories-compiler_release"></a>compiler_release |  version provider from versions.bzl.   |  `struct(sha256 = "ea16ab1cab29d419bf41b60ecc0e305d449fa661d9c05fbcc5b2a6672505456a", url_templates = ["https://github.com/JetBrains/kotlin/releases/download/v{version}/kotlin-compiler-{version}.zip"], version = "2.3.0")` |
-| <a id="kotlin_repositories-ksp_compiler_release"></a>ksp_compiler_release |  (internal) version provider from versions.bzl.   |  `struct(sha256 = "24cb0d869ab2ae9fcf630a747b6b7e662e4be26e8b83b9272f6f3c24813e0c5a", url_templates = ["https://github.com/google/ksp/releases/download/{version}/artifacts.zip"], version = "2.3.3")` |
+| <a id="kotlin_repositories-ksp_compiler_release"></a>ksp_compiler_release |  version provider from versions.bzl.   |  `struct(sha256 = "24cb0d869ab2ae9fcf630a747b6b7e662e4be26e8b83b9272f6f3c24813e0c5a", url_templates = ["https://github.com/google/ksp/releases/download/{version}/artifacts.zip"], version = "2.3.3")` |
 
 
 <a id="versions.use_repository"></a>

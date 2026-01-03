@@ -1,4 +1,6 @@
-# All versions for development and release
+# Kotlin-specific versions for rules_kotlin
+# These are used for http_file downloads in the module extension
+
 load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 
 version = provider(
@@ -20,59 +22,6 @@ def _use_repository(rule, name, version, **kwargs):
     maybe(rule, name = name, **rule_arguments)
 
 versions = struct(
-    # IMPORTANT! rules_kotlin does not use the bazel_skylib unittest in production
-    # This means the bazel_skylib_workspace call is skipped, as it only registers the unittest
-    # toolchains. However, if a new workspace dependency is introduced, this precondition will fail.
-    # Why skip it? Because it would introduce a 3rd function call to rules kotlin setup:
-    # 1. Download archive
-    # 2. Download dependencies and Configure rules
-    # --> 3. Configure dependencies <--
-    BAZEL_SKYLIB = version(
-        version = "1.7.1",
-        sha256 = "bc283cdfcd526a52c3201279cda4bc298652efa898b10b4db0837dc51652756f",
-        url_templates = [
-            "https://github.com/bazelbuild/bazel-skylib/releases/download/{version}/bazel-skylib-{version}.tar.gz",
-        ],
-    ),
-    BAZEL_FEATURES = version(
-        version = "1.25.0",
-        sha256 = "4fd9922d464686820ffd8fcefa28ccffa147f7cdc6b6ac0d8b07fde565c65d66",
-        strip_prefix_template = "bazel_features-{version}",
-        url_templates = [
-            "https://github.com/bazel-contrib/bazel_features/releases/download/v{version}/bazel_features-v{version}.tar.gz",
-        ],
-    ),
-    RULES_JVM_EXTERNAL = version(
-        version = "6.6",
-        sha256 = "3afe5195069bd379373528899c03a3072f568d33bd96fe037bd43b1f590535e7",
-        strip_prefix_template = "rules_jvm_external-{version}",
-        url_templates = [
-            "https://github.com/bazelbuild/rules_jvm_external/releases/download/{version}/rules_jvm_external-{version}.tar.gz",
-        ],
-    ),
-    COM_GOOGLE_PROTOBUF = version(
-        version = "29.0",
-        sha256 = "10a0d58f39a1a909e95e00e8ba0b5b1dc64d02997f741151953a2b3659f6e78c",
-        strip_prefix_template = "protobuf-{version}",
-        url_templates = [
-            "https://github.com/protocolbuffers/protobuf/releases/download/v{version}/protobuf-{version}.tar.gz",
-        ],
-    ),
-    RULES_PROTO = version(
-        version = "7.0.2",
-        sha256 = "0e5c64a2599a6e26c6a03d6162242d231ecc0de219534c38cb4402171def21e8",
-        strip_prefix_template = "rules_proto-{version}",
-        url_templates = [
-            "https://github.com/bazelbuild/rules_proto/releases/download/{version}/rules_proto-{version}.tar.gz",
-        ],
-    ),
-    PINTEREST_KTLINT = version(
-        version = "1.6.0",
-        url_templates = [
-            "https://github.com/pinterest/ktlint/releases/download/{version}/ktlint",
-        ],
-        sha256 = "5ba1ac917a06b0f02daaa60d10abbedd2220d60216af670c67a45b91c74cf8bb",
-    ),
     KOTLIN_CURRENT_COMPILER_RELEASE = version(
         version = "2.3.0",
         url_templates = [
@@ -87,43 +36,19 @@ versions = struct(
         ],
         sha256 = "24cb0d869ab2ae9fcf630a747b6b7e662e4be26e8b83b9272f6f3c24813e0c5a",
     ),
+    PINTEREST_KTLINT = version(
+        version = "1.6.0",
+        url_templates = [
+            "https://github.com/pinterest/ktlint/releases/download/{version}/ktlint",
+        ],
+        sha256 = "5ba1ac917a06b0f02daaa60d10abbedd2220d60216af670c67a45b91c74cf8bb",
+    ),
     KOTLIN_BUILD_TOOLS_IMPL = version(
         version = "2.3.0",
         url_templates = [
             "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-build-tools-impl/{version}/kotlin-build-tools-impl-{version}.jar",
         ],
         sha256 = "93a5e8ffb1000801c832a862b23bd9766f444e6f6c185c32b1fb57877fb5cea3",
-    ),
-    RULES_ANDROID = version(
-        version = "0.6.4",
-        url_templates = [
-            "https://github.com/bazelbuild/rules_android/releases/download/v{version}/rules_android-v{version}.tar.gz",
-        ],
-        strip_prefix_template = "rules_android-{version}",
-        sha256 = "4135e2fa37a94bb36c7801e33faef2934c9fe4f9a84d0035eacc4154c2c30e44",
-    ),
-    RULES_JAVA = version(
-        version = "8.9.0",
-        url_templates = [
-            "https://github.com/bazelbuild/rules_java/releases/download/{version}/rules_java-{version}.tar.gz",
-        ],
-        sha256 = "8daa0e4f800979c74387e4cd93f97e576ec6d52beab8ac94710d2931c57f8d8b",
-    ),
-    RULES_LICENSE = version(
-        version = "1.0.0",
-        url_templates = [
-            "https://mirror.bazel.build/github.com/bazelbuild/rules_license/releases/download/{version}/rules_license-{version}.tar.gz",
-            "https://github.com/bazelbuild/rules_license/releases/download/{version}/rules_license-{version}.tar.gz",
-        ],
-        sha256 = "26d4021f6898e23b82ef953078389dd49ac2b5618ac564ade4ef87cced147b38",
-    ),
-    BAZEL_WORKER_API = version(
-        version = "0.0.8",
-        sha256 = "a58c8c1e53aec7d66498168b0525bfd87add4d3cfd18e3ed03d5bed929dd68fc",
-        strip_prefix_template = "bazel-worker-api-{version}",
-        url_templates = [
-            "https://github.com/bazelbuild/bazel-worker-api/releases/download/v{version}/bazel-worker-api-v{version}.tar.gz",
-        ],
     ),
     KOTLINX_SERIALIZATION_CORE_JVM = version(
         version = "1.8.1",
@@ -145,20 +70,6 @@ versions = struct(
             "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-serialization-json-jvm/{version}/kotlinx-serialization-json-jvm-{version}.jar",
         ],
         sha256 = "8769e5647557e3700919c32d508f5c5dad53c5d8234cd10846354fbcff14aa24",
-    ),
-    PY_ABSL = version(
-        version = "2.1.0",
-        sha256 = "8a3d0830e4eb4f66c4fa907c06edf6ce1c719ced811a12e26d9d3162f8471758",
-        url_templates = [
-            "https://github.com/abseil/abseil-py/archive/refs/tags/v{version}.tar.gz",
-        ],
-        strip_prefix_template = "abseil-py-{version}",
-    ),
-    RULES_CC = version(
-        version = "0.0.16",
-        url_templates = ["https://github.com/bazelbuild/rules_cc/releases/download/{version}/rules_cc-{version}.tar.gz"],
-        sha256 = "bbf1ae2f83305b7053b11e4467d317a7ba3517a12cef608543c1b1c5bf48a4df",
-        strip_prefix_template = "rules_cc-{version}",
     ),
     KOTLINX_COROUTINES_CORE_JVM = version(
         version = "1.10.2",

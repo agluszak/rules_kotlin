@@ -22,10 +22,6 @@ def _kotlin_compiler_impl(repository_ctx):
 def _kotlin_capabilities_impl(repository_ctx):
     """Creates the kotlinc repository."""
     attr = repository_ctx.attr
-    repository_ctx.file(
-        "WORKSPACE",
-        content = """workspace(name = "%s")""" % attr.name,
-    )
     repository_ctx.template(
         "BUILD.bazel",
         attr._template,
