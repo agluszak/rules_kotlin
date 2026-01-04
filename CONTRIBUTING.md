@@ -37,19 +37,7 @@ Otherwise, the Buildkite CI will yell at you about formatting/linting violations
 
 ## Packaging
 
-The release process for rules_kotlin is a bit more involved than packaging and shipping an archive. This is for a few reasons:
-  1. Reduce download size
-  1. Support versioned rules, necessary due to api churn of the koltin compiler.
- 
-Steps performed in generating a release:
-  1. Assemble a tgz that contains the source defined by [release_archive](src/main/starlark/release/packager.bzl)
-    1. `release_archive` allows renaming files in the archive. By convention, any source with `<name>.release.<ext>` should be renamed in the release archive as `<name>.<ext>`
-  1. Test against example projects
-  1. Generate documentation
-  
-All of these steps are tested by [scripts/release.sh](scripts/release.sh). Contributors are highly encouraged to run the script before opening prs. Cleaning up warnings is especially welcomed.
-
-To ease development, pains should be taken to keep the packages in the archive the same as the location in the source.
+Release archives are simply git archives of the repository. No special transformation is needed since rules_kotlin uses bzlmod exclusively.
 
 ### Multi-repo runtime
 
@@ -63,7 +51,7 @@ To cope with API churn, the release archive can configure different rule attribu
  Each major release of kotlin (1.4, 1.5) has a specific sub-repository under [src/main/starlark](src/main/starlark). The naming convention for these
   is `rkt_<major>_<minor>` ([r]elease [k]o[t]lin).
 
-The version is selected by the [kotlin_repositories](src/main/starlark/repositories/initialize.release.bzl) rule during initialization. 
+The version is selected by the [kotlin_repositories](src/main/starlark/core/repositories/initialize.bzl) rule during initialization. 
 New versions of kotlin that change the API should be added to [versions.bzl](src/main/starlark/repositories/versions.bzl), under `CORE` following the 
 existing naming convention.
 

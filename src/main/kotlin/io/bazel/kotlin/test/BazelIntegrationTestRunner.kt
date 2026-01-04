@@ -1,24 +1,17 @@
 package io.bazel.kotlin.test
 
-
-import io.bazel.kotlin.builder.utils.BazelRunFiles
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.FileSystems
-import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.function.Predicate
-import java.util.zip.GZIPInputStream
-import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
-import kotlin.io.path.inputStream
 
 object BazelIntegrationTestRunner {
   @JvmStatic
@@ -26,61 +19,12 @@ object BazelIntegrationTestRunner {
     val fs = FileSystems.getDefault()
     val bazel = fs.getPath(System.getenv("BIT_BAZEL_BINARY"))
     val workspace = fs.getPath(System.getenv("BIT_WORKSPACE_DIR"))
-    val unpack = fs.getPath(System.getenv("TEST_TMPDIR")).resolve("rules_kotlin")
-    val release = BazelRunFiles.resolveVerifiedFromProperty(
-      fs,
-      "@rules_kotlin...rules_kotlin_release",
-    )
-
-    TarArchiveInputStream(
-      GZIPInputStream(
-        release.inputStream(),
-      ),
-    ).use { stream ->
-      generateSequence(stream::getNextEntry).forEach { entry ->
-        val destination = unpack.resolve(entry.name)
-        when {
-          entry.isDirectory -> destination.createDirectories()
-          entry.isFile -> Files.write(
-            destination.apply { parent.createDirectories() },
-            stream.readBytes(),
-          )
-
-          else -> throw NotImplementedError(entry.toString())
-        }
-      }
-    }
 
     val version = bazel.run(workspace, "--version").parseVersion()
-
-    val workspaceFlags = FlagSets(
-      sequence {
-        if (workspace.hasModule()) {
-          yield(
-            listOf(
-              Flag("--enable_bzlmod=true"),
-              Flag("--override_module=rules_kotlin=$unpack"),
-              Flag("--enable_workspace=false") { v -> v >= Version.of(7, 0, 0) },
-            ),
-          )
-        }
-        if (workspace.hasWorkspace()) {
-          yield(
-            listOf(
-              Flag("--override_repository=rules_kotlin=$unpack"),
-              Flag("--enable_bzlmod=false"),
-              Flag("--enable_workspace=true") { v -> v >= Version.of(7, 0, 0) },
-            ),
-          )
-        }
-      }.toList(),
-    )
 
     val deprecationFlags = FlagSets(
       listOf(
         listOf(
-          // TODO[https://github.com/bazelbuild/rules_kotlin/issues/1395]: enable when rules_android
-          // no longer uses local_config_platform
           Flag("--incompatible_disable_native_repo_rules=true") { false },
           Flag("--incompatible_autoload_externally=") { v -> v > Version.Known(8, 0, 0) },
           Flag("--incompatible_disallow_empty_glob=false"),
@@ -100,7 +44,7 @@ object BazelIntegrationTestRunner {
     )
 
     val startupFlagSets = version.resolveBazelRc(workspace)
-    val commandFlagSets = workspaceFlags * deprecationFlags * experimentFlags
+    val commandFlagSets = deprecationFlags * experimentFlags
 
     startupFlagSets.asStringsFor(version).forEach { systemFlags ->
       commandFlagSets.asStringsFor(version).forEach { commandFlags ->
@@ -170,20 +114,14 @@ object BazelIntegrationTestRunner {
       }
   }
 
-  fun Path.hasModule() = resolve("MODULE").exists() || resolve("MODULE.bazel").exists()
-  private fun Path.hasWorkspace() =
-    resolve("WORKSPACE").exists() || resolve("WORKSPACE.bazel").exists()
-
   sealed class Version : Comparable<Version> {
     companion object {
-      fun of(major:Int, minor:Int=0, patch:Int = 0) = Known(major, minor, patch)
+      fun of(major: Int, minor: Int = 0, patch: Int = 0) = Known(major, minor, patch)
     }
-
 
     override fun compareTo(other: Version): Int = 1
 
     abstract fun resolveBazelRc(workspace: Path): FlagSets
-
 
     class Head : Version() {
       override fun compareTo(other: Version): Int = (other as? Head)?.let { 0 } ?: 1
@@ -241,7 +179,6 @@ object BazelIntegrationTestRunner {
   private fun Result<ProcessResult>.parseVersion(): Version {
     ok { result ->
       result.stdOut.toString(UTF_8).split("\n")
-        // first not empty should have the version
         .find(String::isNotEmpty)?.let { line ->
           if ("no_version" in line) {
             return Version.Head()
@@ -328,4 +265,3 @@ object BazelIntegrationTestRunner {
     }
   }
 }
-

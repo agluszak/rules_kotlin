@@ -1,17 +1,4 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
-load("//src/main/starlark/release:packager.bzl", "release_archive")
-
-release_archive(
-    name = "pkg",
-    srcs = glob([
-        "capabilities_*.bazel",
-        "artifacts.bzl",
-        "templates.bzl",
-    ]),
-    src_map = {
-        "BUILD.release.bazel": "BUILD",
-    },
-)
 
 bzl_library(
     name = "kotlin",
@@ -19,4 +6,10 @@ bzl_library(
     visibility = [
         "//visibility:public",
     ],
+)
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
 )

@@ -43,3 +43,9 @@ java_binary(
         ":skip-code-gen-services",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

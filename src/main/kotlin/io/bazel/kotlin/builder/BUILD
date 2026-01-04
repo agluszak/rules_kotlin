@@ -33,3 +33,9 @@ java_library(
         "@kotlin_rules_maven//:javax_inject_javax_inject",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

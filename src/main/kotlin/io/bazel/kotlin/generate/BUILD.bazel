@@ -33,3 +33,9 @@ kt_jvm_binary(
         ":kotlin_release_options_lib",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

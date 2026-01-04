@@ -15,25 +15,101 @@
 """
 
 load(
-    ":initialize.release.bzl",
-    _kotlinc_version = "kotlinc_version",
-    _ksp_version = "ksp_version",
-    _release_kotlin_repositories = "kotlin_repositories",
+    "@bazel_tools//tools/build_defs/repo:http.bzl",
+    "http_file",
 )
-load(":versions.bzl", _versions = "versions")
+load(
+    "//kotlin/internal:defs.bzl",
+    _KSP_COMPILER_PLUGIN_REPO = "KSP_COMPILER_PLUGIN_REPO",
+    _KT_COMPILER_REPO = "KT_COMPILER_REPO",
+)
+load(":compiler.bzl", "kotlin_compiler_repository")
+load(":ksp.bzl", "ksp_compiler_plugin_repository")
+load(":versions.bzl", "version", _versions = "versions")
 
-# exports
 versions = _versions
-kotlinc_version = _kotlinc_version
-ksp_version = _ksp_version
+
+RULES_KOTLIN = Label("//:all")
 
 def kotlin_repositories(
+        compiler_repository_name = _KT_COMPILER_REPO,
+        ksp_repository_name = _KSP_COMPILER_PLUGIN_REPO,
         compiler_release = versions.KOTLIN_CURRENT_COMPILER_RELEASE,
         ksp_compiler_release = versions.KSP_CURRENT_COMPILER_PLUGIN_RELEASE):
     """Setup the Kotlin compiler and KSP repositories.
 
     Args:
-        compiler_release: (internal) version provider from versions.bzl.
-        ksp_compiler_release: (internal) version provider from versions.bzl.
+        compiler_repository_name: for the kotlinc compiler repository.
+        ksp_repository_name: for the KSP compiler plugin repository.
+        compiler_release: version provider from versions.bzl.
+        ksp_compiler_release: version provider from versions.bzl.
     """
-    _release_kotlin_repositories(compiler_release = compiler_release, ksp_compiler_release = ksp_compiler_release)
+
+    kotlin_compiler_repository(
+        name = compiler_repository_name,
+        urls = [url.format(version = compiler_release.version) for url in compiler_release.url_templates],
+        sha256 = compiler_release.sha256,
+        compiler_version = compiler_release.version,
+    )
+
+    ksp_compiler_plugin_repository(
+        name = ksp_repository_name,
+        urls = [url.format(version = ksp_compiler_release.version) for url in ksp_compiler_release.url_templates],
+        sha256 = ksp_compiler_release.sha256,
+        strip_version = ksp_compiler_release.version,
+    )
+
+    versions.use_repository(
+        http_file,
+        name = "com_github_pinterest_ktlint",
+        version = versions.PINTEREST_KTLINT,
+        executable = True,
+    )
+
+    versions.use_repository(
+        http_file,
+        name = "kotlinx_serialization_core_jvm",
+        version = versions.KOTLINX_SERIALIZATION_CORE_JVM,
+    )
+
+    versions.use_repository(
+        http_file,
+        name = "kotlinx_serialization_json",
+        version = versions.KOTLINX_SERIALIZATION_JSON,
+    )
+
+    versions.use_repository(
+        http_file,
+        name = "kotlinx_serialization_json_jvm",
+        version = versions.KOTLINX_SERIALIZATION_JSON_JVM,
+    )
+
+    versions.use_repository(
+        http_file,
+        name = "kotlinx_coroutines_core_jvm",
+        version = versions.KOTLINX_COROUTINES_CORE_JVM,
+    )
+
+    versions.use_repository(
+        http_file,
+        name = "kotlin_build_tools_impl",
+        version = versions.KOTLIN_BUILD_TOOLS_IMPL,
+    )
+
+def kotlinc_version(release, sha256):
+    return version(
+        version = release,
+        url_templates = [
+            "https://github.com/JetBrains/kotlin/releases/download/v{version}/kotlin-compiler-{version}.zip",
+        ],
+        sha256 = sha256,
+    )
+
+def ksp_version(release, sha256):
+    return version(
+        version = release,
+        url_templates = [
+            "https://github.com/google/ksp/releases/download/{version}/artifacts.zip",
+        ],
+        sha256 = sha256,
+    )

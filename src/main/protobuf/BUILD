@@ -37,3 +37,9 @@ java_library(
         ":kotlin_model_java_proto",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

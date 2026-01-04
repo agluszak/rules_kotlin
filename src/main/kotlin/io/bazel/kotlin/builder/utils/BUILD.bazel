@@ -15,3 +15,9 @@ kt_bootstrap_library(
         "@kotlin_rules_maven//:com_google_protobuf_protobuf_java_util",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

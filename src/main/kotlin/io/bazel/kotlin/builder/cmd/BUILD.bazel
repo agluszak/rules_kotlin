@@ -94,3 +94,9 @@ kt_bootstrap_binary(
     visibility = ["//src:__subpackages__"],
     runtime_deps = [":ksp2_lib"],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

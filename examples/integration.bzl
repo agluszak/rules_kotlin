@@ -55,7 +55,9 @@ def example_integration_test_suite(
                 bazel_version = version,
                 tags = tags + [clean_bazel_version, name],
                 test_runner = "//src/main/kotlin/io/bazel/kotlin/test:BazelIntegrationTestRunner",
-                workspace_files = metadata.workspace_files,
+                workspace_files = metadata.workspace_files + [
+                    "//:local_repository_files",
+                ],
                 workspace_path = metadata.directory,
             )
 

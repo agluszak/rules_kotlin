@@ -1,6 +1,3 @@
-load("@buildifier_prebuilt//:rules.bzl", "buildifier")
-load("//kotlin:lint.bzl", "ktlint_config")
-
 # Copyright 2018 The Bazel Authors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,11 +11,56 @@ load("//kotlin:lint.bzl", "ktlint_config")
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-load("//src/main/starlark/release:packager.bzl", "release_archive")
+
+load("//kotlin:lint.bzl", "ktlint_config")
 
 exports_files([
     "scripts/noop.sh",
 ])
+
+filegroup(
+    name = "local_repository_files",
+    srcs = glob(
+        ["*"],
+        exclude = ["bazel-*"],
+    ) + [
+        # kotlin/ hierarchy
+        "//kotlin:all_files",
+        "//kotlin/compiler:all_files",
+        "//kotlin/internal:all_files",
+        "//kotlin/internal/jvm:all_files",
+        "//kotlin/internal/lint:all_files",
+        "//kotlin/internal/utils:all_files",
+        "//kotlin/settings:all_files",
+        # src/main/kotlin/ hierarchy
+        "//src/main/kotlin:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/builder:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/builder/cmd:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/builder/tasks:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/builder/toolchain:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/builder/utils:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/builder/utils/jars:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/compiler:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/generate:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/ksp2:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/plugin:all_files",
+        "//src/main/kotlin/io/bazel/kotlin/plugin/jdeps:all_files",
+        "//src/main/kotlin/io/bazel/worker:all_files",
+        # src/main/starlark/ hierarchy
+        "//src/main/starlark:all_files",
+        "//src/main/starlark/core:all_files",
+        "//src/main/starlark/core/compile:all_files",
+        "//src/main/starlark/core/compile/cli:all_files",
+        "//src/main/starlark/core/options:all_files",
+        "//src/main/starlark/core/plugin:all_files",
+        "//src/main/starlark/core/repositories:all_files",
+        "//src/main/starlark/core/repositories/kotlin:all_files",
+        # Other
+        "//src/main/protobuf:all_files",
+        "//third_party:all_files",
+    ],
+    visibility = ["//:__subpackages__"],
+)
 
 filegroup(
     name = "editorconfig",
@@ -57,68 +99,3 @@ test_suite(
     ],
 )
 
-# Release target.
-release_archive(
-    name = "rules_kotlin_release",
-    src_map = {
-        "BUILD.release.bazel": "BUILD.bazel",
-        "MODULE.release.bazel": "MODULE.bazel",
-    },
-    deps = [
-        "//kotlin:pkg",
-        "//src/main/kotlin:pkg",
-        "//src/main/starlark:pkg",
-        "//third_party:pkg",
-    ],
-)
-
-# This target collects all of the parent workspace files needed by the child workspaces.
-filegroup(
-    name = "release_repositories",
-    # Include every package that is required by the child workspaces.
-    srcs = [
-        ":rules_kotlin_release",
-    ],
-    visibility = ["//:__subpackages__"],
-)
-
-# TODO[https://github.com/bazelbuild/rules_kotlin/issues/1395]: Must be run with `--config=deprecated`
-buildifier(
-    name = "buildifier.check",
-    exclude_patterns = [
-        "./.git/*",
-        "./.ijwb/*",
-    ],
-    lint_mode = "warn",
-    lint_warnings = [
-        "+unsorted-dict-items",
-        "-confusing-name",
-        "-constant-glob",
-        "-duplicated-name",
-        "-function-docstring",
-        "-function-docstring-args",
-        "-function-docstring-header",
-        "-module-docstring",
-        "-name-conventions",
-        "-no-effect",
-        "-constant-glob",
-        "-provider-params",
-        "-print",
-        "-rule-impl-return",
-        "-bzl-visibility",
-        "-unnamed-macro",
-        "-uninitialized",
-        "-unreachable",
-    ],
-)
-
-buildifier(
-    name = "buildifier.fix",
-    exclude_patterns = [
-        "./.git/*",
-    ],
-    lint_mode = "fix",
-    lint_warnings = [
-        "+unsorted-dict-items",
-    ],
-)
