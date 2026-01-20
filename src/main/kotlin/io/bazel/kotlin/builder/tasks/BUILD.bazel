@@ -20,7 +20,7 @@ kt_bootstrap_library(
         "**/*.kt",
     ]),
     neverlink_deps = [
-        "@bazel_tools//tools/jdk:JacocoCoverage",
+        "@remote_java_tools//:jacoco_coverage_runner",
     ],
     visibility = ["//src:__subpackages__"],
     deps = [

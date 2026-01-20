@@ -47,8 +47,8 @@ kt_bootstrap_binary(
     shade_rules = "//src/main/kotlin:shade.jarjar",
     visibility = ["//src:__subpackages__"],
     runtime_deps = [
-        ":build_lib",
         "@bazel_tools//tools/jdk:JacocoCoverage",
+        ":build_lib",
     ],
 )
 
