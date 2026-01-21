@@ -16,10 +16,18 @@
  */
 package io.bazel.kotlin.builder.tasks.jvm
 
+import io.bazel.kotlin.builder.tasks.jvm.JDepsGenerator.emptyJdeps
+import io.bazel.kotlin.builder.tasks.jvm.JDepsGenerator.writeJdeps
+import io.bazel.kotlin.builder.toolchain.BtapiToolchainFactory
 import io.bazel.kotlin.builder.toolchain.CompilationStatusException
 import io.bazel.kotlin.builder.toolchain.CompilationTaskContext
 import io.bazel.kotlin.builder.toolchain.KotlinToolchain
 import io.bazel.kotlin.model.JvmCompilationTask
+import org.jetbrains.kotlin.buildtools.api.CompilationResult
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.PrintStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -35,6 +43,7 @@ class KotlinJvmTaskExecutor
   internal constructor(
     private val compilerBuilder: KotlinToolchain.KotlincInvokerBuilder,
     private val plugins: InternalCompilerPlugins,
+    private val toolchain: KotlinToolchain,
   ) {
     private fun combine(
       one: Throwable?,
@@ -67,66 +76,37 @@ class KotlinJvmTaskExecutor
             runCatching {
               context.execute("kotlinc") {
                 if (compileKotlin) {
-                  // Build base args first to pass to incrementalCompilationArgs for hash computation
-                  val compilationArgs =
-                    baseArgs()
-                      .given(outputs.jdeps)
-                      .notEmpty {
-                        plugin(plugins.jdeps) {
-                          flag("output", outputs.jdeps)
-                          flag("target_label", info.label)
-                          inputs.directDependenciesList.forEach {
-                            flag("direct_dependencies", it)
-                          }
-                          inputs.classpathList.forEach {
-                            flag("full_classpath", it)
-                          }
-                          flag("strict_kotlin_deps", info.strictKotlinDeps)
-                        }
-                      }.given(outputs.jar)
-                      .notEmpty {
-                        append(codeGenArgs())
-                      }.given(outputs.abijar)
-                      .notEmpty {
-                        plugin(plugins.jvmAbiGen) {
-                          flag("outputDir", directories.abiClasses)
-                          if (info.treatInternalAsPrivateInAbiJar) {
-                            flag("treatInternalAsPrivate", "true")
-                          }
-                          if (info.removePrivateClassesInAbiJar) {
-                            flag("removePrivateClasses", "true")
-                          }
-                          if (info.removeDebugInfo) {
-                            flag("removeDebugInfo", "true")
-                          }
-                        }
-                        given(outputs.jar).empty {
-                          plugin(plugins.skipCodeGen)
-                        }
-                      }
+                  val outputStream = ByteArrayOutputStream()
+                  val ps = PrintStream(outputStream)
 
-                  // Get args list for IC hash computation, including compiler plugin options
-                  // (plugins are added in compileKotlin, but we need them for the hash)
-                  val argsWithPlugins =
-                    (
-                      compilationArgs +
-                        plugins(
-                          options = inputs.compilerPluginOptionsList,
-                          classpath = inputs.compilerPluginClasspathList,
-                        )
-                    ).list()
-                  val finalArgs =
-                    compilationArgs.given(info.incrementalCompilation) {
-                      append(incrementalCompilationArgs(argsWithPlugins))
-                    }
+                  val pluginJars = mutableListOf<File>()
+                  pluginJars.add(File(plugins.jdeps.jarPath))
+                  pluginJars.add(File(plugins.jvmAbiGen.jarPath))
+                  if (preprocessedTask.outputs.jar.isEmpty()) {
+                    pluginJars.add(File(plugins.skipCodeGen.jarPath))
+                  }
+                  preprocessedTask.inputs.compilerPluginClasspathList.forEach { pluginJars.add(File(it)) }
 
-                  compileKotlin(
-                    context,
-                    compiler,
-                    args = finalArgs,
-                    printOnFail = false,
-                  )
+                  val factory =
+                    BtapiToolchainFactory(
+                      toolchain.buildToolsImplJar,
+                      toolchain.compilerJar,
+                      pluginJars,
+                    )
+                  val btapiCompiler = BtapiCompiler(factory.createToolchains(), ps)
+                  val result = btapiCompiler.compile(preprocessedTask, plugins)
+
+                  val outputLines =
+                    ByteArrayInputStream(outputStream.toByteArray())
+                      .bufferedReader()
+                      .readLines()
+
+                  if (result != CompilationResult.COMPILATION_SUCCESS) {
+                    throw CompilationStatusException("compile phase failed", result.ordinal, outputLines)
+                  }
+                  outputLines
                 } else {
+                  writeJdeps(outputs.jdeps, emptyJdeps(info.label))
                   emptyList()
                 }
               }

@@ -40,8 +40,8 @@ class KotlinToolchain private constructor(
   val jvmAbiGen: CompilerPlugin,
   val skipCodeGen: CompilerPlugin,
   val jdepsGen: CompilerPlugin,
-  internal val buildToolsImplJar: File,
-  internal val compilerJar: File,
+  val buildToolsImplJar: File,
+  val compilerJar: File,
 ) {
   companion object {
     private val JVM_ABI_PLUGIN by lazy {

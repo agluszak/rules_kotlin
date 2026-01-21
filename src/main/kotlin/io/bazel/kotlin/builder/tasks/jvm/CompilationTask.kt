@@ -51,13 +51,6 @@ private const val SOURCE_JARS_DIR = "_srcjars"
 private const val API_VERSION_ARG = "-api-version"
 private const val LANGUAGE_VERSION_ARG = "-language-version"
 
-fun JvmCompilationTask.codeGenArgs(): CompilationArgs =
-  CompilationArgs()
-    .absolutePaths(info.friendPathsList) {
-      "-Xfriend-paths=${it.joinToString(X_FRIENDS_PATH_SEPARATOR)}"
-    }.flag("-d", directories.classes)
-    .values(info.passthroughFlagsList)
-
 fun JvmCompilationTask.baseArgs(overrides: Map<String, String> = emptyMap()): CompilationArgs {
   val classpath =
     when (info.reducedClasspathMode) {
@@ -470,168 +463,12 @@ internal fun JvmCompilationTask.createClasspathSnapshotsPaths(): List<String> {
     }
 }
 
-/**
- * Creates incremental compilation arguments for the Build Tools API compiler.
- * Returns an empty CompilationArgs if incremental compilation is not enabled.
- *
- * IC data is stored in worker-local directories derived from output JAR paths:
- * - IC working directory: <output_jar>-ic/ic-caches/
- * - BTAPI's shrunk snapshot: <output_jar>-ic/shrunk-classpath-snapshot.bin (managed by BTAPI)
- * - Our output snapshot: <output_jar>-ic/output-classpath-snapshot.bin (for downstream consumers)
- * - Dependencies' snapshots: found at <dep_jar>-ic/output-classpath-snapshot.bin
- * - Args hash: <output_jar>-ic/args-hash.txt (for detecting compiler argument changes)
- *
- * @param currentArgs The current compiler arguments list, used to detect configuration changes
- */
-internal fun JvmCompilationTask.incrementalCompilationArgs(currentArgs: List<String>): CompilationArgs {
-  if (!info.incrementalCompilation) {
-    return CompilationArgs()
-  }
-
-  // IC working directory is derived from output JAR: <jar>-ic/
-  if (directories.incrementalBaseDir.isEmpty()) {
-    return CompilationArgs() // No IC base dir, skip IC
-  }
-
-  val icBaseDir = Paths.get(directories.incrementalBaseDir)
-  val icWorkingDir = icBaseDir.resolve("ic-caches")
-
-  // Shrunk classpath snapshot path (stored in IC directory)
-  val shrunkSnapshotPath = icBaseDir.resolve("shrunk-classpath-snapshot.bin").toString()
-
-  // Compute classpath snapshot paths from classpath JARs
-  val classpathSnapshots = createClasspathSnapshotsPaths()
-
-  // Root project dir for relocatable caches (use execution root)
-  val rootProjectDir = ROOT.trimEnd(File.separatorChar)
-
-  // Compute current args hash and compare with previous
-  val currentArgsHash = computeArgsHash(currentArgs)
-  val previousArgsHash = loadArgsHash(icBaseDir)
-
-  // Force recompilation if:
-  // 1. No previous snapshot (first build)
-  // 2. Compiler arguments changed
-  val snapshotMissing = !Paths.get(shrunkSnapshotPath).toFile().exists()
-  val argsChanged = previousArgsHash != null && previousArgsHash != currentArgsHash
-  val forceRecompilation = snapshotMissing || argsChanged
-
-  // Store current hash for next build comparison
-  Files.createDirectories(icBaseDir)
-  storeArgsHash(icBaseDir, currentArgsHash)
-
-  return CompilationArgs()
-    .flag("--ic-working-dir=$icWorkingDir")
-    .flag("--ic-shrunk-snapshot=$shrunkSnapshotPath")
-    .flag("--ic-root-project-dir=$rootProjectDir")
-    .given(classpathSnapshots.isNotEmpty()) {
-      flag("--ic-classpath-snapshots=${classpathSnapshots.joinToString(",")}")
-    }.given(forceRecompilation) {
-      flag("--ic-force-recompilation")
-    }.given(info.icEnableLogging) {
-      flag("--ic-enable-logging")
-    }
-}
-
 val ROOT: String by lazy {
   FileSystems
     .getDefault()
     .getPath("")
     .toAbsolutePath()
     .toString() + File.separator
-}
-
-/**
- * Computes a hash of compiler arguments for detecting configuration changes.
- * Filters out path-specific args that change between builds (sandbox paths, output dirs).
- */
-private fun computeArgsHash(args: List<String>): Long {
-  val filteredArgs = args.filter { arg ->
-    !arg.startsWith("-d ") &&
-      !arg.startsWith("-classpath") &&
-      !arg.startsWith("-cp") &&
-      !arg.contains("/sandbox/") &&
-      !arg.contains("/execroot/")
-  }.sorted()
-
-  var hash = 0L
-  for (arg in filteredArgs) {
-    hash = hash * 31 + arg.hashCode()
-  }
-  return hash
-}
-
-/**
- * Stores the args hash in the IC directory for future comparison.
- */
-private fun storeArgsHash(icBaseDir: Path, hash: Long) {
-  val hashFile = icBaseDir.resolve("args-hash.txt")
-  Files.writeString(hashFile, hash.toString())
-}
-
-/**
- * Loads the previous args hash from the IC directory.
- * Returns null if the hash file doesn't exist.
- */
-private fun loadArgsHash(icBaseDir: Path): Long? {
-  val hashFile = icBaseDir.resolve("args-hash.txt")
-  return if (Files.exists(hashFile)) {
-    Files.readString(hashFile).trim().toLongOrNull()
-  } else {
-    null
-  }
-}
-
-/**
- * Compiles Kotlin sources to classes. Does not compile Java sources.
- */
-fun JvmCompilationTask.compileKotlin(
-  context: CompilationTaskContext,
-  compiler: KotlinToolchain.KotlincInvoker,
-  args: CompilationArgs = baseArgs(),
-  printOnFail: Boolean = true,
-): List<String> {
-  if (inputs.kotlinSourcesList.isEmpty()) {
-    writeJdeps(outputs.jdeps, emptyJdeps(info.label))
-    return emptyList()
-  } else {
-    return (
-      args +
-        plugins(
-          options = inputs.compilerPluginOptionsList,
-          classpath = inputs.compilerPluginClasspathList,
-        )
-    ).values(inputs.javaSourcesList)
-      .values(inputs.kotlinSourcesList)
-      .flag("-d", directories.classes)
-      .list()
-      .let {
-        context.whenTracing {
-          context.printLines("compileKotlin arguments:\n", it)
-        }
-        return@let context
-          .executeCompilerTask(it, compiler::compile, printOnFail = printOnFail)
-          .also {
-            context.whenTracing {
-              printLines(
-                "kotlinc Files Created:",
-                Stream
-                  .of(
-                    directories.classes,
-                    directories.generatedClasses,
-                    directories.generatedSources,
-                    directories.generatedJavaSources,
-                    directories.temp,
-                  ).map { Paths.get(it) }
-                  .flatMap { walk(it) }
-                  .filter { !isDirectory(it) }
-                  .map { it.toString() }
-                  .collect(toList()),
-              )
-            }
-          }
-      }
-  }
 }
 
 /**
