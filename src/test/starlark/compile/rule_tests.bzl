@@ -22,12 +22,20 @@ def _outputs(env, got):
         map_each = _maybe_get_class_jar,
     ).contains(env.ctx.file.class_jar)
 
-    want_compile_jars = {
-        j: True
+    dep_compile_jars = {
+        j.short_path: True
         for d in env.ctx.attr.transitive_compile_deps
         if JavaInfo in d
-        for j in d[JavaInfo].compile_jars.to_list()
-    }.keys()
+        for j in d[JavaInfo].transitive_compile_time_jars.to_list()
+    }
+
+    want_compile_jars = []
+    for path in dep_compile_jars.keys():
+        if "/header_" in path:
+            processed_path = path.replace("/header_", "/processed_")
+            if processed_path in dep_compile_jars:
+                continue
+        want_compile_jars.append(path)
 
     want_runtime_jars = [
         j
@@ -36,7 +44,7 @@ def _outputs(env, got):
         for j in d[JavaInfo].transitive_runtime_jars.to_list()
     ]
 
-    got_java_info.transitive_compile_time_jars().contains_exactly([j.short_path for j in want_compile_jars])
+    got_java_info.transitive_compile_time_jars().contains_exactly(want_compile_jars)
     got_java_info.transitive_runtime_jars().contains_exactly([j.short_path for j in want_runtime_jars])
     got_java_info.source_jars().contains(env.ctx.file.source_jar)
 
