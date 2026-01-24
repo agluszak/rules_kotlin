@@ -20,11 +20,11 @@ import io.bazel.kotlin.builder.utils.BazelRunFiles
 import io.bazel.kotlin.builder.utils.resolveVerified
 import io.bazel.kotlin.builder.utils.verified
 import io.bazel.kotlin.builder.utils.verifiedPath
-import org.jetbrains.kotlin.preloading.ClassPreloadingUtils
-import org.jetbrains.kotlin.preloading.Preloader
 import java.io.File
 import java.io.PrintStream
 import java.lang.reflect.Method
+import java.net.URL
+import java.net.URLClassLoader
 import java.nio.file.FileSystems
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -199,17 +199,12 @@ class KotlinToolchain private constructor(
     classLoader: ClassLoader = ClassLoader.getSystemClassLoader(),
   ): ClassLoader =
     runCatching {
-      ClassPreloadingUtils.preloadClasses(
-        mutableListOf<File>().also {
-          it += baseJars
-          if (!isJdk9OrNewer) {
-            it += javaHome.resolveVerified("lib", "tools.jar")
-          }
-        },
-        Preloader.DEFAULT_CLASS_NUMBER_ESTIMATE,
-        classLoader,
-        null,
-      )
+        val urls = mutableListOf<URL>()
+        baseJars.forEach { urls.add(it.toURI().toURL()) }
+        if (!isJdk9OrNewer) {
+            urls.add(javaHome.resolveVerified("lib", "tools.jar").toURI().toURL())
+        }
+        URLClassLoader(urls.toTypedArray(), classLoader)
     }.onFailure {
       throw RuntimeException("$javaHome, $baseJars", it)
     }.getOrThrow()
