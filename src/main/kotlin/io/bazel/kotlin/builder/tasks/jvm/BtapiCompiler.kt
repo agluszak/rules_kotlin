@@ -41,6 +41,7 @@ import org.jetbrains.kotlin.buildtools.api.jvm.operations.JvmClasspathSnapshotti
 import org.jetbrains.kotlin.buildtools.api.jvm.operations.JvmCompilationOperation.Companion.INCREMENTAL_COMPILATION
 import java.io.BufferedInputStream
 import java.io.FileInputStream
+import java.security.DigestInputStream
 import java.security.MessageDigest
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -115,11 +116,10 @@ class BtapiCompiler(
 
   private fun hashFile(path: Path): String {
     val digest = MessageDigest.getInstance("SHA-256")
-    FileInputStream(path.toFile()).use { fis ->
+    DigestInputStream(Files.newInputStream(path), digest).use { dis ->
       val buffer = ByteArray(8192)
-      var bytesRead: Int
-      while (fis.read(buffer).also { bytesRead = it } != -1) {
-        digest.update(buffer, 0, bytesRead)
+      while (dis.read(buffer) != -1) {
+        // Read to update digest
       }
     }
     return digest.digest().joinToString("") { "%02x".format(it) }
@@ -462,42 +462,30 @@ class BtapiCompiler(
   private fun computeArgsHash(
     args: JvmCompilerArguments,
     task: JvmCompilationTask,
-  ): Long {
+  ): Int {
     // Hash relevant settings that would require recompilation if changed
-    var hash = 0L
-    hash = hash * 31 + task.info.moduleName.hashCode()
-    hash = hash * 31 +
-      task.info.toolchainInfo.jvm.jvmTarget
-        .hashCode()
-    hash = hash * 31 +
-      task.info.toolchainInfo.common.apiVersion
-        .hashCode()
-    hash = hash * 31 +
-      task.info.toolchainInfo.common.languageVersion
-        .hashCode()
-    hash = hash * 31 +
-      task.info.passthroughFlagsList
-        .sorted()
-        .hashCode()
-    hash = hash * 31 +
-      task.inputs.compilerPluginOptionsList
-        .sorted()
-        .hashCode()
-    return hash
+    return listOf(
+      task.info.moduleName,
+      task.info.toolchainInfo.jvm.jvmTarget,
+      task.info.toolchainInfo.common.apiVersion,
+      task.info.toolchainInfo.common.languageVersion,
+      task.info.passthroughFlagsList.sorted(),
+      task.inputs.compilerPluginOptionsList.sorted(),
+    ).hashCode()
   }
 
   private fun storeArgsHash(
     icBaseDir: Path,
-    hash: Long,
+    hash: Int,
   ) {
     val hashFile = icBaseDir.resolve("args-hash.txt")
     Files.writeString(hashFile, hash.toString())
   }
 
-  private fun loadArgsHash(icBaseDir: Path): Long? {
+  private fun loadArgsHash(icBaseDir: Path): Int? {
     val hashFile = icBaseDir.resolve("args-hash.txt")
     return if (Files.exists(hashFile)) {
-      Files.readString(hashFile).trim().toLongOrNull()
+      Files.readString(hashFile).trim().toIntOrNull()
     } else {
       null
     }
@@ -506,82 +494,89 @@ class BtapiCompiler(
   /**
    * Parse JVM target string to BTAPI enum.
    */
-  private fun parseJvmTarget(target: String): JvmTarget? =
-    when (target) {
-      "1.6", "6" -> JvmTarget.JVM1_6
-      "1.8", "8" -> JvmTarget.JVM1_8
-      "9" -> JvmTarget.JVM_9
-      "10" -> JvmTarget.JVM_10
-      "11" -> JvmTarget.JVM_11
-      "12" -> JvmTarget.JVM_12
-      "13" -> JvmTarget.JVM_13
-      "14" -> JvmTarget.JVM_14
-      "15" -> JvmTarget.JVM_15
-      "16" -> JvmTarget.JVM_16
-      "17" -> JvmTarget.JVM_17
-      "18" -> JvmTarget.JVM_18
-      "19" -> JvmTarget.JVM_19
-      "20" -> JvmTarget.JVM_20
-      "21" -> JvmTarget.JVM_21
-      "22" -> JvmTarget.JVM_22
-      "23" -> JvmTarget.JVM_23
-      "24" -> JvmTarget.JVM_24
-      "25" -> JvmTarget.JVM_25
-      else -> null
-    }
+  private fun parseJvmTarget(target: String): JvmTarget? = JVM_TARGET_MAP[target]
 
   /**
    * Parse Kotlin version string to BTAPI enum.
    */
-  private fun parseKotlinVersion(version: String): BtapiKotlinVersion? =
-    when (version) {
-      "1.4" -> BtapiKotlinVersion.V1_4
-      "1.5" -> BtapiKotlinVersion.V1_5
-      "1.6" -> BtapiKotlinVersion.V1_6
-      "1.7" -> BtapiKotlinVersion.V1_7
-      "1.8" -> BtapiKotlinVersion.V1_8
-      "1.9" -> BtapiKotlinVersion.V1_9
-      "2.0" -> BtapiKotlinVersion.V2_0
-      "2.1" -> BtapiKotlinVersion.V2_1
-      "2.2" -> BtapiKotlinVersion.V2_2
-      "2.3" -> BtapiKotlinVersion.V2_3
-      else -> null
-    }
+  private fun parseKotlinVersion(version: String): BtapiKotlinVersion? = KOTLIN_VERSION_MAP[version]
+
+  private companion object {
+    private val JVM_TARGET_MAP =
+      mapOf(
+        "1.6" to JvmTarget.JVM1_6,
+        "6" to JvmTarget.JVM1_6,
+        "1.8" to JvmTarget.JVM1_8,
+        "8" to JvmTarget.JVM1_8,
+        "9" to JvmTarget.JVM_9,
+        "10" to JvmTarget.JVM_10,
+        "11" to JvmTarget.JVM_11,
+        "12" to JvmTarget.JVM_12,
+        "13" to JvmTarget.JVM_13,
+        "14" to JvmTarget.JVM_14,
+        "15" to JvmTarget.JVM_15,
+        "16" to JvmTarget.JVM_16,
+        "17" to JvmTarget.JVM_17,
+        "18" to JvmTarget.JVM_18,
+        "19" to JvmTarget.JVM_19,
+        "20" to JvmTarget.JVM_20,
+        "21" to JvmTarget.JVM_21,
+        "22" to JvmTarget.JVM_22,
+        "23" to JvmTarget.JVM_23,
+        "24" to JvmTarget.JVM_24,
+        "25" to JvmTarget.JVM_25,
+      )
+
+    private val KOTLIN_VERSION_MAP =
+      mapOf(
+        "1.4" to BtapiKotlinVersion.V1_4,
+        "1.5" to BtapiKotlinVersion.V1_5,
+        "1.6" to BtapiKotlinVersion.V1_6,
+        "1.7" to BtapiKotlinVersion.V1_7,
+        "1.8" to BtapiKotlinVersion.V1_8,
+        "1.9" to BtapiKotlinVersion.V1_9,
+        "2.0" to BtapiKotlinVersion.V2_0,
+        "2.1" to BtapiKotlinVersion.V2_1,
+        "2.2" to BtapiKotlinVersion.V2_2,
+        "2.3" to BtapiKotlinVersion.V2_3,
+      )
+  }
 
   /**
    * Creates a simple logger for IC debugging output.
    */
-  private fun createIcLogger(out: PrintStream): KotlinLogger =
-    object : KotlinLogger {
-      override val isDebugEnabled: Boolean = true
+  private fun createIcLogger(out: PrintStream): KotlinLogger = IcLogger(out)
 
-      override fun error(
-        msg: String,
-        throwable: Throwable?,
-      ) {
-        out.println("[IC ERROR] $msg")
-        throwable?.printStackTrace(out)
-      }
+  private class IcLogger(private val out: PrintStream) : KotlinLogger {
+    override val isDebugEnabled: Boolean = true
 
-      override fun warn(
-        msg: String,
-        throwable: Throwable?,
-      ) {
-        out.println("[IC WARN] $msg")
-      }
-
-      override fun info(msg: String) {
-        out.println("[IC INFO] $msg")
-      }
-
-      override fun debug(msg: String) {
-        out.println("[IC DEBUG] $msg")
-      }
-
-      override fun lifecycle(msg: String) {
-        out.println("[IC] $msg")
-      }
+    override fun error(
+      msg: String,
+      throwable: Throwable?,
+    ) {
+      out.println("[IC ERROR] $msg")
+      throwable?.printStackTrace(out)
     }
+
+    override fun warn(
+      msg: String,
+      throwable: Throwable?,
+    ) {
+      out.println("[IC WARN] $msg")
+    }
+
+    override fun info(msg: String) {
+      out.println("[IC INFO] $msg")
+    }
+
+    override fun debug(msg: String) {
+      out.println("[IC DEBUG] $msg")
+    }
+
+    override fun lifecycle(msg: String) {
+      out.println("[IC] $msg")
+    }
+  }
 
   /**
    * Compiles Kotlin sources with KAPT (annotation processing) using the Build Tools API.
