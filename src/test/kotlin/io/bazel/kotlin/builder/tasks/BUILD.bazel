@@ -153,6 +153,11 @@ kt_rules_test(
     ],
 )
 
+kt_rules_test(
+    name = "PassthroughFlagsTest",
+    srcs = ["jvm/PassthroughFlagsTest.java"],
+)
+
 test_suite(
     name = "tasks_tests",
     tests = [

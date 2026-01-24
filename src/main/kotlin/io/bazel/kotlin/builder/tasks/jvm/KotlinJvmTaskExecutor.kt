@@ -51,15 +51,20 @@ class KotlinJvmTaskExecutor(
       preprocessedTask.apply {
         context.execute("kotlinc") {
           if (compileKotlin && inputs.kotlinSourcesList.isNotEmpty()) {
-            val result = btapiCompiler.compile(this, plugins, context.out)
-            when (result) {
-              CompilationResult.COMPILATION_SUCCESS -> { /* success */ }
-              CompilationResult.COMPILATION_ERROR ->
-                throw CompilationStatusException("Compilation failed", 1)
-              CompilationResult.COMPILATION_OOM_ERROR ->
-                throw CompilationStatusException("Compilation failed with OOM", 3)
-              CompilationResult.COMPILER_INTERNAL_ERROR ->
-                throw CompilationStatusException("Compiler internal error", 2)
+            try {
+              val result = btapiCompiler.compile(this, plugins, context.out)
+              when (result) {
+                CompilationResult.COMPILATION_SUCCESS -> { /* success */ }
+                CompilationResult.COMPILATION_ERROR ->
+                  throw CompilationStatusException("Compilation failed", 1)
+                CompilationResult.COMPILATION_OOM_ERROR ->
+                  throw CompilationStatusException("Compilation failed with OOM", 3)
+                CompilationResult.COMPILER_INTERNAL_ERROR ->
+                  throw CompilationStatusException("Compiler internal error", 2)
+              }
+            } catch (e: org.jetbrains.kotlin.buildtools.api.CompilerArgumentsParseException) {
+              context.out.println(e.message)
+              throw CompilationStatusException("Compilation failed: ${e.message}", 1)
             }
           }
         }

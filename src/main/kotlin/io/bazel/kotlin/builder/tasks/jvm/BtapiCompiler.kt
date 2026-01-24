@@ -210,8 +210,15 @@ class BtapiCompiler(
     args: JvmCompilerArguments,
     task: JvmCompilationTask,
   ) {
+    // Apply passthrough flags FIRST because applyArgumentStrings can reset other arguments
+    // (e.g. it might clear MODULE_NAME, NO_STDLIB, etc. if they are not in the string list)
+    if (task.info.passthroughFlagsList.isNotEmpty()) {
+      args.applyArgumentStrings(task.info.passthroughFlagsList)
+    }
+
     // Module name
     args[JvmCompilerArguments.MODULE_NAME] = task.info.moduleName
+
     args[JvmCompilerArguments.NO_STDLIB] = true
     args[JvmCompilerArguments.NO_REFLECT] = true
 
@@ -239,11 +246,6 @@ class BtapiCompiler(
       args[JvmCompilerArguments.X_FRIEND_PATHS] = task.info.friendPathsList.toTypedArray()
     }
 
-    // Passthrough flags (for args without typed setters)
-    if (task.info.passthroughFlagsList.isNotEmpty()) {
-      System.err.println("DEBUG: passthrough flags = ${task.info.passthroughFlagsList}")
-//      args.applyArgumentStrings(task.info.passthroughFlagsList)
-    }
   }
 
   /**
