@@ -12,5 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This file previously contained KOTLINC_ARTIFACTS used for extracting jars from the compiler distribution.
-# With the streamlining of the download process, these are no longer needed.
+# List of Kotlin standard library targets for runtime dependencies
+KOTLIN_STDLIBS = [
+    "//kotlin/compiler:annotations",
+    "//kotlin/compiler:kotlin-reflect",
+    "//kotlin/compiler:kotlin-stdlib",
+    "//kotlin/compiler:kotlinx-coroutines-core-jvm",
+]

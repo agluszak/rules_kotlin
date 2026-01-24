@@ -24,7 +24,6 @@ load(
     _KSP_COMPILER_PLUGIN_REPO = "KSP_COMPILER_PLUGIN_REPO",
     _KT_COMPILER_REPO = "KT_COMPILER_REPO",
 )
-load(":compiler.bzl", "kotlin_compiler_repository")
 load(":ksp.bzl", "ksp_compiler_plugin_repository")
 load(":versions.bzl", "version", _versions = "versions")
 
@@ -47,13 +46,6 @@ def kotlin_repositories(
          created.
         ksp_compiler_release: (internal) version provider from versions.bzl.
     """
-
-    kotlin_compiler_repository(
-        name = compiler_repository_name,
-        urls = [url.format(version = compiler_release.version) for url in compiler_release.url_templates],
-        sha256 = compiler_release.sha256,
-        compiler_version = compiler_release.version,
-    )
 
     ksp_compiler_plugin_repository(
         name = ksp_repository_name,
@@ -117,6 +109,72 @@ def kotlin_repositories(
         version = versions.KOTLIN_ANNOTATION_PROCESSING_EMBEDDABLE,
         # Needs to end with .jar, otherwise the compiler won't recognize it
         downloaded_file_path = "kotlin-annotation-processing-embeddable.jar",
+    )
+
+    versions.use_repository(
+        http_file,
+        name = "kotlin_stdlib",
+        version = versions.KOTLIN_STDLIB,
+    )
+
+    versions.use_repository(
+        http_file,
+        name = "kotlin_reflect",
+        version = versions.KOTLIN_REFLECT,
+    )
+
+    versions.use_repository(
+        http_file,
+        name = "kotlin_test",
+        version = versions.KOTLIN_TEST,
+    )
+
+    versions.use_repository(
+        http_file,
+        name = "kotlin_jvm_abi_gen",
+        version = versions.KOTLIN_JVM_ABI_GEN,
+    )
+
+    versions.use_repository(
+        http_file,
+        name = "kotlin_compiler",
+        version = versions.KOTLIN_COMPILER,
+    )
+
+    versions.use_repository(
+        http_file,
+        name = "kotlin_annotation_processing",
+        version = versions.KOTLIN_ANNOTATION_PROCESSING,
+    )
+
+    versions.use_repository(
+        http_file,
+        name = "kotlin_allopen_compiler_plugin",
+        version = versions.KOTLIN_ALLOPEN_COMPILER_PLUGIN,
+    )
+
+    versions.use_repository(
+        http_file,
+        name = "kotlin_noarg_compiler_plugin",
+        version = versions.KOTLIN_NOARG_COMPILER_PLUGIN,
+    )
+
+    versions.use_repository(
+        http_file,
+        name = "kotlin_sam_with_receiver_compiler_plugin",
+        version = versions.KOTLIN_SAM_WITH_RECEIVER_COMPILER_PLUGIN,
+    )
+
+    versions.use_repository(
+        http_file,
+        name = "kotlin_serialization_compiler_plugin",
+        version = versions.KOTLIN_SERIALIZATION_COMPILER_PLUGIN,
+    )
+
+    versions.use_repository(
+        http_file,
+        name = "jetbrains_annotations",
+        version = versions.JETBRAINS_ANNOTATIONS,
     )
 
     if is_bzlmod:

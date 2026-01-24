@@ -19,7 +19,10 @@ def _use_repository(rule, name, version, **kwargs):
 
     maybe(rule, name = name, **rule_arguments)
 
+_KOTLIN_VERSION = "2.3.20-Beta1"
+
 versions = struct(
+    KOTLIN_VERSION = _KOTLIN_VERSION,
     # IMPORTANT! rules_kotlin does not use the bazel_skylib unittest in production
     # This means the bazel_skylib_workspace call is skipped, as it only registers the unittest
     # toolchains. However, if a new workspace dependency is introduced, this precondition will fail.
@@ -82,7 +85,7 @@ versions = struct(
         sha256 = "5ba1ac917a06b0f02daaa60d10abbedd2220d60216af670c67a45b91c74cf8bb",
     ),
     KOTLIN_CURRENT_COMPILER_RELEASE = version(
-        version = "2.3.20-Beta1",
+        version = _KOTLIN_VERSION,
         url_templates = [
             "https://github.com/JetBrains/kotlin/releases/download/v{version}/kotlin-compiler-{version}.zip",
         ],
@@ -96,28 +99,28 @@ versions = struct(
         sha256 = "24cb0d869ab2ae9fcf630a747b6b7e662e4be26e8b83b9272f6f3c24813e0c5a",
     ),
     KOTLIN_BUILD_TOOLS_IMPL = version(
-        version = "2.3.20-Beta1",
+        version = _KOTLIN_VERSION,
         url_templates = [
             "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-build-tools-impl/{version}/kotlin-build-tools-impl-{version}.jar",
         ],
         sha256 = "7026a0ef96e4e9e8355c7af3e2a9ef32b93b0e143cd6b4a01fa9ab9b6135c4d3",
     ),
     KOTLIN_BUILD_TOOLS_API = version(
-        version = "2.3.20-Beta1",
+        version = _KOTLIN_VERSION,
         url_templates = [
             "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-build-tools-api/{version}/kotlin-build-tools-api-{version}.jar",
         ],
         sha256 = "e38d7bb8b9afe9c27f018e97dec60328ff3ec20b62b5e961f1c865b7628dfb4a",
     ),
     KOTLIN_COMPILER_EMBEDDABLE = version(
-        version = "2.3.20-Beta1",
+        version = _KOTLIN_VERSION,
         url_templates = [
             "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-compiler-embeddable/{version}/kotlin-compiler-embeddable-{version}.jar",
         ],
         sha256 = "dee0d35840adc614a08289105361c1562caa2c0f5fc29ca1f9bb928b1b2f7d31",
     ),
     KOTLIN_ANNOTATION_PROCESSING_EMBEDDABLE = version(
-        version = "2.3.20-Beta1",
+        version = _KOTLIN_VERSION,
         url_templates = [
             "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-annotation-processing-embeddable/{version}/kotlin-annotation-processing-embeddable-{version}.jar",
         ],
@@ -195,6 +198,83 @@ versions = struct(
             "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/{version}/kotlinx-coroutines-core-jvm-{version}.jar",
         ],
         sha256 = "5ca175b38df331fd64155b35cd8cae1251fa9ee369709b36d42e0a288ccce3fd",
+    ),
+    KOTLIN_STDLIB = version(
+        version = _KOTLIN_VERSION,
+        url_templates = [
+            "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/{version}/kotlin-stdlib-{version}.jar",
+        ],
+        sha256 = "5a188839e2df64860469affa140e71d8ec6cdf8e5e8136071fcdcafffd888f10",
+    ),
+    KOTLIN_REFLECT = version(
+        version = _KOTLIN_VERSION,
+        url_templates = [
+            "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-reflect/{version}/kotlin-reflect-{version}.jar",
+        ],
+        sha256 = "9d38f4920f5311d89fd479236ef916fefab2eabd52ea08075ae1b16f68a4242f",
+    ),
+    KOTLIN_TEST = version(
+        version = _KOTLIN_VERSION,
+        url_templates = [
+            "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-test/{version}/kotlin-test-{version}.jar",
+        ],
+        sha256 = "7cbf1d718957312fb0f859da72af5cfb657362fc3f2e2bd9a1e372e2b7047816",
+    ),
+    KOTLIN_JVM_ABI_GEN = version(
+        version = _KOTLIN_VERSION,
+        url_templates = [
+            "https://repo1.maven.org/maven2/org/jetbrains/kotlin/jvm-abi-gen/{version}/jvm-abi-gen-{version}.jar",
+        ],
+        sha256 = "2cc99a406216e9f1535961ebcf255b5daebdbc33d9de3f894b4c9fed88395e19",
+    ),
+    KOTLIN_COMPILER = version(
+        version = _KOTLIN_VERSION,
+        url_templates = [
+            "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-compiler/{version}/kotlin-compiler-{version}.jar",
+        ],
+        sha256 = "12fa45aba29230b2346d025c8a5a8314f73565ea0969f2bb4a3bc06e7e22d4f9",
+    ),
+    KOTLIN_ANNOTATION_PROCESSING = version(
+        version = _KOTLIN_VERSION,
+        url_templates = [
+            "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-annotation-processing/{version}/kotlin-annotation-processing-{version}.jar",
+        ],
+        sha256 = "3d5a00d7976e6efb723e8842f388c12f4217dda439ce48638dfd26edea4bb29d",
+    ),
+    KOTLIN_ALLOPEN_COMPILER_PLUGIN = version(
+        version = _KOTLIN_VERSION,
+        url_templates = [
+            "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-allopen-compiler-plugin/{version}/kotlin-allopen-compiler-plugin-{version}.jar",
+        ],
+        sha256 = "7a90aedb45b68abf9b0732d7f49ce6035d77c010e50173911739137352d9ec00",
+    ),
+    KOTLIN_NOARG_COMPILER_PLUGIN = version(
+        version = _KOTLIN_VERSION,
+        url_templates = [
+            "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-noarg-compiler-plugin/{version}/kotlin-noarg-compiler-plugin-{version}.jar",
+        ],
+        sha256 = "c344c75dc30f0106b194ab0a75b9aa48c97c8ca0c359b7604be4396f696ae4e8",
+    ),
+    KOTLIN_SAM_WITH_RECEIVER_COMPILER_PLUGIN = version(
+        version = _KOTLIN_VERSION,
+        url_templates = [
+            "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-sam-with-receiver-compiler-plugin/{version}/kotlin-sam-with-receiver-compiler-plugin-{version}.jar",
+        ],
+        sha256 = "639921828764368e68c2fc4dcc0972421d3e7f6f04364f4ef556fe93a9822c4f",
+    ),
+    KOTLIN_SERIALIZATION_COMPILER_PLUGIN = version(
+        version = _KOTLIN_VERSION,
+        url_templates = [
+            "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-serialization-compiler-plugin/{version}/kotlin-serialization-compiler-plugin-{version}.jar",
+        ],
+        sha256 = "5629ade847af956562f7f466cc85ead7e79df3548d961a92138ea60de2e98f98",
+    ),
+    JETBRAINS_ANNOTATIONS = version(
+        version = "13.0",
+        url_templates = [
+            "https://repo1.maven.org/maven2/org/jetbrains/annotations/{version}/annotations-{version}.jar",
+        ],
+        sha256 = "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
     ),
     use_repository = _use_repository,
 )
