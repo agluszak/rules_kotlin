@@ -347,7 +347,7 @@ kt_jvm_library(
 | <a id="kt_compiler_plugin-id"></a>id |  The ID of the plugin   | String | required |  |
 | <a id="kt_compiler_plugin-options"></a>options |  Dictionary of options to be passed to the plugin. Supports the following template values:<br><br>- `{generatedClasses}`: directory for generated class output - `{temp}`: temporary directory, discarded between invocations - `{generatedSources}`:  directory for generated source output - `{classpath}` : replaced with a list of jars separated by the filesystem appropriate separator.   | <a href="https://bazel.build/rules/lib/dict">Dictionary: String -> String</a> | optional |  `{}`  |
 | <a id="kt_compiler_plugin-stubs_phase"></a>stubs_phase |  Runs the compiler plugin in kapt stub generation.   | Boolean | optional |  `True`  |
-| <a id="kt_compiler_plugin-target_embedded_compiler"></a>target_embedded_compiler |  Plugin was compiled against the embeddable kotlin compiler. These plugins expect shaded kotlinc dependencies, and will fail when running against a non-embeddable compiler.   | Boolean | optional |  `False`  |
+| <a id="kt_compiler_plugin-target_embedded_compiler"></a>target_embedded_compiler |  Deprecated: This attribute no longer affects behavior. Plugin JARs are used as-is without reshading.   | Boolean | optional |  `False`  |
 
 
 <a id="kt_javac_options"></a>
@@ -405,10 +405,10 @@ kt_kotlinc_options(<a href="#kt_kotlinc_options-name">name</a>, <a href="#kt_kot
                    <a href="#kt_kotlinc_options-x_fragment_refines">x_fragment_refines</a>, <a href="#kt_kotlinc_options-x_fragment_sources">x_fragment_sources</a>, <a href="#kt_kotlinc_options-x_fragments">x_fragments</a>,
                    <a href="#kt_kotlinc_options-x_generate_strict_metadata_version">x_generate_strict_metadata_version</a>, <a href="#kt_kotlinc_options-x_ignore_const_optimization_errors">x_ignore_const_optimization_errors</a>,
                    <a href="#kt_kotlinc_options-x_indy_allow_annotated_lambdas">x_indy_allow_annotated_lambdas</a>, <a href="#kt_kotlinc_options-x_inline_classes">x_inline_classes</a>,
-                   <a href="#kt_kotlinc_options-x_ir_do_not_clear_binding_context">x_ir_do_not_clear_binding_context</a>, <a href="#kt_kotlinc_options-x_ir_inliner">x_ir_inliner</a>, <a href="#kt_kotlinc_options-x_java_package_prefix">x_java_package_prefix</a>,
-                   <a href="#kt_kotlinc_options-x_jdk_release">x_jdk_release</a>, <a href="#kt_kotlinc_options-x_jspecify_annotations">x_jspecify_annotations</a>, <a href="#kt_kotlinc_options-x_jsr305">x_jsr305</a>, <a href="#kt_kotlinc_options-x_jvm_default">x_jvm_default</a>,
-                   <a href="#kt_kotlinc_options-x_jvm_enable_preview">x_jvm_enable_preview</a>, <a href="#kt_kotlinc_options-x_jvm_expose_boxed">x_jvm_expose_boxed</a>, <a href="#kt_kotlinc_options-x_lambdas">x_lambdas</a>, <a href="#kt_kotlinc_options-x_link_via_signatures">x_link_via_signatures</a>,
-                   <a href="#kt_kotlinc_options-x_list_phases">x_list_phases</a>, <a href="#kt_kotlinc_options-x_metadata_klib">x_metadata_klib</a>, <a href="#kt_kotlinc_options-x_metadata_version">x_metadata_version</a>, <a href="#kt_kotlinc_options-x_multi_dollar_interpolation">x_multi_dollar_interpolation</a>,
+                   <a href="#kt_kotlinc_options-x_ir_do_not_clear_binding_context">x_ir_do_not_clear_binding_context</a>, <a href="#kt_kotlinc_options-x_java_package_prefix">x_java_package_prefix</a>, <a href="#kt_kotlinc_options-x_jdk_release">x_jdk_release</a>,
+                   <a href="#kt_kotlinc_options-x_jspecify_annotations">x_jspecify_annotations</a>, <a href="#kt_kotlinc_options-x_jsr305">x_jsr305</a>, <a href="#kt_kotlinc_options-x_jvm_default">x_jvm_default</a>, <a href="#kt_kotlinc_options-x_jvm_enable_preview">x_jvm_enable_preview</a>,
+                   <a href="#kt_kotlinc_options-x_jvm_expose_boxed">x_jvm_expose_boxed</a>, <a href="#kt_kotlinc_options-x_lambdas">x_lambdas</a>, <a href="#kt_kotlinc_options-x_link_via_signatures">x_link_via_signatures</a>, <a href="#kt_kotlinc_options-x_list_phases">x_list_phases</a>,
+                   <a href="#kt_kotlinc_options-x_metadata_klib">x_metadata_klib</a>, <a href="#kt_kotlinc_options-x_metadata_version">x_metadata_version</a>, <a href="#kt_kotlinc_options-x_multi_dollar_interpolation">x_multi_dollar_interpolation</a>,
                    <a href="#kt_kotlinc_options-x_multi_platform">x_multi_platform</a>, <a href="#kt_kotlinc_options-x_multifile_parts_inherit">x_multifile_parts_inherit</a>, <a href="#kt_kotlinc_options-x_name_based_destructuring">x_name_based_destructuring</a>,
                    <a href="#kt_kotlinc_options-x_nested_type_aliases">x_nested_type_aliases</a>, <a href="#kt_kotlinc_options-x_new_inference">x_new_inference</a>, <a href="#kt_kotlinc_options-x_no_call_assertions">x_no_call_assertions</a>, <a href="#kt_kotlinc_options-x_no_check_actual">x_no_check_actual</a>,
                    <a href="#kt_kotlinc_options-x_no_inline">x_no_inline</a>, <a href="#kt_kotlinc_options-x_no_new_java_annotation_targets">x_no_new_java_annotation_targets</a>, <a href="#kt_kotlinc_options-x_no_optimize">x_no_optimize</a>,
@@ -504,7 +504,6 @@ Define kotlin compiler options.
 | <a id="kt_kotlinc_options-x_indy_allow_annotated_lambdas"></a>x_indy_allow_annotated_lambdas |  Allow using 'invokedynamic' for lambda expressions with annotations   | Boolean | optional |  `False`  |
 | <a id="kt_kotlinc_options-x_inline_classes"></a>x_inline_classes |  Enable experimental inline classes.   | Boolean | optional |  `False`  |
 | <a id="kt_kotlinc_options-x_ir_do_not_clear_binding_context"></a>x_ir_do_not_clear_binding_context |  When using the IR backend, do not clear BindingContext between 'psi2ir' and lowerings.   | Boolean | optional |  `False`  |
-| <a id="kt_kotlinc_options-x_ir_inliner"></a>x_ir_inliner |  Inline functions using the IR inliner instead of the bytecode inliner.   | Boolean | optional |  `False`  |
 | <a id="kt_kotlinc_options-x_java_package_prefix"></a>x_java_package_prefix |  Package prefix for Java files.   | String | optional |  `""`  |
 | <a id="kt_kotlinc_options-x_jdk_release"></a>x_jdk_release |  Compile against the specified JDK API version, similarly to javac's '-release'. This requires JDK 9 or newer. The supported versions depend on the JDK used; for JDK 17+, the supported versions are 1.8 and 9-21. This also sets the value of '-jvm-target' to be equal to the selected JDK version.   | String | optional |  `""`  |
 | <a id="kt_kotlinc_options-x_jspecify_annotations"></a>x_jspecify_annotations |  Specify the behavior of 'jspecify' annotations. The default value is 'strict'.   | String | optional |  `""`  |
@@ -630,7 +629,7 @@ kt_jvm_library(
 | <a id="kt_ksp_plugin-deps"></a>deps |  The list of libraries to be added to the compiler's plugin classpath   | <a href="https://bazel.build/concepts/labels">List of labels</a> | optional |  `[]`  |
 | <a id="kt_ksp_plugin-generates_java"></a>generates_java |  Runs Java compilation action for plugin generating Java output.   | Boolean | optional |  `False`  |
 | <a id="kt_ksp_plugin-processor_class"></a>processor_class |  The fully qualified class name that the Java compiler uses as an entry point to the annotation processor.   | String | required |  |
-| <a id="kt_ksp_plugin-target_embedded_compiler"></a>target_embedded_compiler |  Plugin was compiled against the embeddable kotlin compiler. These plugins expect shaded kotlinc dependencies, and will fail when running against a non-embeddable compiler.   | Boolean | optional |  `False`  |
+| <a id="kt_ksp_plugin-target_embedded_compiler"></a>target_embedded_compiler |  Deprecated: This attribute no longer affects behavior. Plugin JARs are used as-is without reshading.   | Boolean | optional |  `False`  |
 
 
 <a id="kt_plugin_cfg"></a>
@@ -671,9 +670,10 @@ define_kt_toolchain(<a href="#define_kt_toolchain-name">name</a>, <a href="#defi
                     <a href="#define_kt_toolchain-experimental_remove_private_classes_in_abi_jars">experimental_remove_private_classes_in_abi_jars</a>,
                     <a href="#define_kt_toolchain-experimental_remove_debug_info_in_abi_jars">experimental_remove_debug_info_in_abi_jars</a>, <a href="#define_kt_toolchain-experimental_strict_kotlin_deps">experimental_strict_kotlin_deps</a>,
                     <a href="#define_kt_toolchain-experimental_report_unused_deps">experimental_report_unused_deps</a>, <a href="#define_kt_toolchain-experimental_reduce_classpath_mode">experimental_reduce_classpath_mode</a>,
-                    <a href="#define_kt_toolchain-experimental_multiplex_workers">experimental_multiplex_workers</a>, <a href="#define_kt_toolchain-experimental_build_tools_api">experimental_build_tools_api</a>, <a href="#define_kt_toolchain-javac_options">javac_options</a>,
-                    <a href="#define_kt_toolchain-kotlinc_options">kotlinc_options</a>, <a href="#define_kt_toolchain-jvm_stdlibs">jvm_stdlibs</a>, <a href="#define_kt_toolchain-jvm_runtime">jvm_runtime</a>, <a href="#define_kt_toolchain-jacocorunner">jacocorunner</a>, <a href="#define_kt_toolchain-exec_compatible_with">exec_compatible_with</a>,
-                    <a href="#define_kt_toolchain-target_compatible_with">target_compatible_with</a>, <a href="#define_kt_toolchain-target_settings">target_settings</a>)
+                    <a href="#define_kt_toolchain-experimental_multiplex_workers">experimental_multiplex_workers</a>, <a href="#define_kt_toolchain-experimental_incremental_compilation">experimental_incremental_compilation</a>,
+                    <a href="#define_kt_toolchain-experimental_ic_enable_logging">experimental_ic_enable_logging</a>, <a href="#define_kt_toolchain-javac_options">javac_options</a>, <a href="#define_kt_toolchain-kotlinc_options">kotlinc_options</a>, <a href="#define_kt_toolchain-jvm_stdlibs">jvm_stdlibs</a>,
+                    <a href="#define_kt_toolchain-jvm_runtime">jvm_runtime</a>, <a href="#define_kt_toolchain-jacocorunner">jacocorunner</a>, <a href="#define_kt_toolchain-exec_compatible_with">exec_compatible_with</a>, <a href="#define_kt_toolchain-target_compatible_with">target_compatible_with</a>,
+                    <a href="#define_kt_toolchain-target_settings">target_settings</a>)
 </pre>
 
 Define the Kotlin toolchain.
@@ -695,7 +695,8 @@ Define the Kotlin toolchain.
 | <a id="define_kt_toolchain-experimental_report_unused_deps"></a>experimental_report_unused_deps |  <p align="center"> - </p>   |  `None` |
 | <a id="define_kt_toolchain-experimental_reduce_classpath_mode"></a>experimental_reduce_classpath_mode |  <p align="center"> - </p>   |  `None` |
 | <a id="define_kt_toolchain-experimental_multiplex_workers"></a>experimental_multiplex_workers |  <p align="center"> - </p>   |  `None` |
-| <a id="define_kt_toolchain-experimental_build_tools_api"></a>experimental_build_tools_api |  <p align="center"> - </p>   |  `None` |
+| <a id="define_kt_toolchain-experimental_incremental_compilation"></a>experimental_incremental_compilation |  <p align="center"> - </p>   |  `None` |
+| <a id="define_kt_toolchain-experimental_ic_enable_logging"></a>experimental_ic_enable_logging |  <p align="center"> - </p>   |  `None` |
 | <a id="define_kt_toolchain-javac_options"></a>javac_options |  <p align="center"> - </p>   |  `Label("@rules_kotlin//kotlin/internal:default_javac_options")` |
 | <a id="define_kt_toolchain-kotlinc_options"></a>kotlinc_options |  <p align="center"> - </p>   |  `Label("@rules_kotlin//kotlin/internal:default_kotlinc_options")` |
 | <a id="define_kt_toolchain-jvm_stdlibs"></a>jvm_stdlibs |  <p align="center"> - </p>   |  `None` |
@@ -731,8 +732,7 @@ This macro registers the kotlin toolchain.
 <pre>
 load("@rules_kotlin//kotlin:repositories.doc.bzl", "kotlin_repositories")
 
-kotlin_repositories(<a href="#kotlin_repositories-is_bzlmod">is_bzlmod</a>, <a href="#kotlin_repositories-compiler_repository_name">compiler_repository_name</a>, <a href="#kotlin_repositories-ksp_repository_name">ksp_repository_name</a>, <a href="#kotlin_repositories-compiler_release">compiler_release</a>,
-                    <a href="#kotlin_repositories-ksp_compiler_release">ksp_compiler_release</a>)
+kotlin_repositories(<a href="#kotlin_repositories-is_bzlmod">is_bzlmod</a>, <a href="#kotlin_repositories-compiler_repository_name">compiler_repository_name</a>, <a href="#kotlin_repositories-compiler_version">compiler_version</a>)
 </pre>
 
 Call this in the WORKSPACE file to setup the Kotlin rules.
@@ -744,9 +744,7 @@ Call this in the WORKSPACE file to setup the Kotlin rules.
 | :------------- | :------------- | :------------- |
 | <a id="kotlin_repositories-is_bzlmod"></a>is_bzlmod |  <p align="center"> - </p>   |  `False` |
 | <a id="kotlin_repositories-compiler_repository_name"></a>compiler_repository_name |  for the kotlinc compiler repository.   |  `"com_github_jetbrains_kotlin"` |
-| <a id="kotlin_repositories-ksp_repository_name"></a>ksp_repository_name |  <p align="center"> - </p>   |  `"com_github_google_ksp"` |
-| <a id="kotlin_repositories-compiler_release"></a>compiler_release |  version provider from versions.bzl.   |  `struct(sha256 = "ea16ab1cab29d419bf41b60ecc0e305d449fa661d9c05fbcc5b2a6672505456a", url_templates = ["https://github.com/JetBrains/kotlin/releases/download/v{version}/kotlin-compiler-{version}.zip"], version = "2.3.0")` |
-| <a id="kotlin_repositories-ksp_compiler_release"></a>ksp_compiler_release |  (internal) version provider from versions.bzl.   |  `struct(sha256 = "24cb0d869ab2ae9fcf630a747b6b7e662e4be26e8b83b9272f6f3c24813e0c5a", url_templates = ["https://github.com/google/ksp/releases/download/{version}/artifacts.zip"], version = "2.3.3")` |
+| <a id="kotlin_repositories-compiler_version"></a>compiler_version |  Kotlin compiler version string (e.g. "2.3.20-Beta1").   |  `"2.3.20-Beta1"` |
 
 
 <a id="versions.use_repository"></a>
