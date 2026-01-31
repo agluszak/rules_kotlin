@@ -66,6 +66,7 @@ maven.install(
         "org.jetbrains.kotlin:kotlin-reflect",
         "org.jetbrains.kotlin:kotlin-script-runtime",
     ],
+    lock_file = "//:maven_install.json",
     repositories = [
         "https://maven.google.com",
         "https://repo1.maven.org/maven2",

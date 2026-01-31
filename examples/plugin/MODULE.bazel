@@ -19,6 +19,7 @@ maven.install(
         "junit:junit:4.13.2",
         "org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.0.1",
     ],
+    lock_file = "//:maven_install.json",
     repositories = [
         "https://repo1.maven.org/maven2",
     ],

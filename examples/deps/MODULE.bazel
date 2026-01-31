@@ -21,6 +21,7 @@ maven.install(
         "com.google.auto.value:auto-value:1.6.5",
         "com.google.auto.value:auto-value-annotations:1.6.5",
     ],
+    lock_file = "//:maven_install.json",
     repositories = [
         "https://maven.google.com",
         "https://repo1.maven.org/maven2",
