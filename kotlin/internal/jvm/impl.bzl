@@ -26,12 +26,7 @@ load(
     "//kotlin/internal/jvm:compile.bzl",
     _compile = "compile",
 )
-load(
-    "//kotlin/internal/utils:utils.bzl",
-    _utils = "utils",
-)
 load("//src/main/starlark/core/plugin:common.bzl", "plugin_common")
-load("//third_party:jarjar.bzl", "jarjar_action")
 
 # Toolchain type for the Windows launcher maker
 _LAUNCHER_MAKER_TOOLCHAIN_TYPE = "@bazel_tools//tools/launcher:launcher_maker_toolchain_type"
@@ -85,6 +80,14 @@ def _get_executable(ctx):
     if _is_windows(ctx):
         executable_name = executable_name + ".exe"
     return ctx.actions.declare_file(executable_name)
+
+def _derive_module_name(ctx):
+    module_name = getattr(ctx.attr, "module_name", "")
+    if module_name == "":
+        package = ctx.label.package.lstrip("/").replace("/", "_")
+        name = ctx.label.name.replace("/", "_")
+        module_name = package + "-" + name if package else name
+    return module_name
 
 def _create_windows_exe_launcher(ctx, executable, java_executable, classpath, main_class, jvm_flags_for_launcher, runfiles_enabled, coverage_main_class = None):
     """Create a Windows exe launcher using the launcher_maker tool."""
@@ -262,11 +265,6 @@ def _write_launcher_action(ctx, rjars, main_class, jvm_flags, is_test = False):
     )
     return struct(coverage_metadata = [], executable = None)
 
-# buildifier: disable=unused-variable
-def _is_source_jar_stub(jar):
-    """Workaround for intellij plugin expecting a source jar"""
-    return jar.path.endswith("third_party/empty.jar")
-
 def _unify_jars(ctx):
     if bool(ctx.attr.jar):
         return struct(class_jar = ctx.file.jar, source_jar = ctx.file.srcjar, ijar = None)
@@ -308,9 +306,11 @@ def kt_jvm_import_impl(ctx):
 
     artifact = _unify_jars(ctx)
     kt_info = _KtJvmInfo(
-        module_name = _utils.derive_module_name(ctx),
+        module_name = _derive_module_name(ctx),
         module_jars = [],
         exported_compiler_plugins = depset(getattr(ctx.attr, "exported_compiler_plugins", [])),
+        classpath_snapshot = None,
+        transitive_classpath_snapshots = depset(),
         outputs = struct(
             jars = [artifact],
         ),
@@ -340,13 +340,6 @@ def kt_jvm_library_impl(ctx):
     if ctx.attr.neverlink and ctx.attr.runtime_deps:
         fail("runtime_deps and neverlink is nonsensical.", attr = "runtime_deps")
 
-    if not ctx.attr.srcs and len(ctx.attr.deps) > 0:
-        fail(
-            "deps without srcs is invalid." +
-            "\nTo add runtime dependencies use runtime_deps." +
-            "\nTo export libraries use exports.",
-            attr = "deps",
-        )
     return _make_providers(
         ctx,
         providers = _compile.kt_jvm_produce_jar_actions(ctx, "kt_jvm_library") if ctx.attr.srcs or ctx.attr.resources else _compile.export_only_providers(
@@ -457,13 +450,12 @@ def kt_jvm_junit_test_impl(ctx):
 _KtCompilerPluginClasspathInfo = provider(
     fields = {
         "infos": "list JavaInfos of a compiler library",
-        "reshaded_infos": "list reshaded JavaInfos of a compiler library",
     },
 )
 
 def kt_compiler_deps_aspect_impl(target, ctx):
     """
-    Collects and reshades (if necessary) all jars in the plugin transitive closure.
+    Collects all jars in the plugin transitive closure.
 
     Args:
         target: Target of the rule being inspected
@@ -477,56 +469,19 @@ def kt_compiler_deps_aspect_impl(target, ctx):
         for t in getattr(ctx.rule.attr, d, [])
         if _KtCompilerPluginClasspathInfo in t
     ]
-    reshaded_infos = []
     infos = [
         i
         for t in transitive_infos
         for i in t.infos
     ]
     if JavaInfo in target:
-        ji = target[JavaInfo]
-        infos.append(ji)
-        reshaded_infos.append(
-            _reshade_embedded_kotlinc_jars(
-                target = target,
-                ctx = ctx,
-                jars = ji.runtime_output_jars,
-                deps = [
-                    i
-                    for t in transitive_infos
-                    for i in t.reshaded_infos
-                ],
-            ),
-        )
+        infos.append(target[JavaInfo])
 
     return [
         _KtCompilerPluginClasspathInfo(
-            reshaded_infos = reshaded_infos,
             infos = [java_common.merge(infos)],
         ),
     ]
-
-def _reshade_embedded_kotlinc_jars(target, ctx, jars, deps):
-    reshaded = [
-        jarjar_action(
-            actions = ctx.actions,
-            jarjar = ctx.executable._jarjar,
-            rules = ctx.file._kotlin_compiler_reshade_rules,
-            input = jar,
-            output = ctx.actions.declare_file(
-                "%s_reshaded_%s" % (target.label.name, jar.basename),
-            ),
-        )
-        for jar in jars
-    ]
-
-    # JavaInfo only takes a single jar, so create many and merge them.
-    return java_common.merge(
-        [
-            JavaInfo(output_jar = jar, compile_jar = jar, deps = deps)
-            for jar in reshaded
-        ],
-    )
 
 def _expand_location_with_data_deps(ctx):
     return lambda targets: ctx.expand_location(targets, ctx.attr.data)
@@ -535,24 +490,15 @@ def kt_compiler_plugin_impl(ctx):
     plugin_id = ctx.attr.id
 
     deps = ctx.attr.deps
-    info = None
-    if ctx.attr.target_embedded_compiler:
-        info = java_common.merge([
-            i
-            for d in deps
-            for i in d[_KtCompilerPluginClasspathInfo].reshaded_infos
-        ])
-    else:
-        info = java_common.merge([
-            i
-            for d in deps
-            for i in d[_KtCompilerPluginClasspathInfo].infos
-        ])
+    info = java_common.merge([
+        i
+        for d in deps
+        for i in d[_KtCompilerPluginClasspathInfo].infos
+    ])
 
     classpath = depset(info.runtime_output_jars, transitive = [info.transitive_runtime_jars])
 
-    # TODO(1035): Migrate kt_compiler_plugin.options to string_list_dict
-    options = plugin_common.resolve_plugin_options(plugin_id, {k: [v] for (k, v) in ctx.attr.options.items()}, _expand_location_with_data_deps(ctx))
+    options = plugin_common.resolve_plugin_options(ctx.attr.options, _expand_location_with_data_deps(ctx))
 
     return [
         DefaultInfo(files = classpath),
@@ -575,14 +521,11 @@ def kt_plugin_cfg_impl(ctx):
 
 def kt_ksp_plugin_impl(ctx):
     deps = ctx.attr.deps
-    if ctx.attr.target_embedded_compiler:
-        info = java_common.merge([
-            i
-            for d in deps
-            for i in d[_KtCompilerPluginClasspathInfo].reshaded_infos
-        ])
-    else:
-        info = java_common.merge([dep[JavaInfo] for dep in deps])
+    info = java_common.merge([
+        i
+        for d in deps
+        for i in d[_KtCompilerPluginClasspathInfo].infos
+    ])
 
     classpath = depset(info.runtime_output_jars, transitive = [info.transitive_runtime_jars])
 
