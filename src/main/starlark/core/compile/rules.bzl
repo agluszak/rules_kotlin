@@ -118,6 +118,8 @@ def _kt_jvm_library_impl(ctx):
             additional_generated_source_jars = [],
             all_output_jars = [class_jar, source_jar],
             exported_compiler_plugins = depset(),
+            classpath_snapshot = None,
+            transitive_classpath_snapshots = depset(),
         ),
         java_info,
         DefaultInfo(
