@@ -292,7 +292,7 @@ _common_attr = utils.add_dicts(
             doc = """The list of source files that are processed to create the target, this can contain both Java and Kotlin
         files. Java analysis occurs first so Kotlin classes may depend on Java classes in the same compilation unit.""",
             default = [],
-            allow_files = [".srcjar", ".kt", ".java"],
+            allow_files = [".srcjar", ".kt", ".java", ".form"],
         ),
         "_use_auto_exec_groups": attr.bool(default = False),
     },
@@ -541,17 +541,6 @@ DEPRECATED - please use `jar` and `srcjar` attributes.""",
 _kt_compiler_deps_aspect = aspect(
     implementation = _kt_compiler_deps_aspect_impl,
     attr_aspects = ["deps", "runtime_deps", "exports"],
-    attrs = {
-        "_jarjar": attr.label(
-            executable = True,
-            cfg = "exec",
-            default = Label("//third_party:jarjar_runner"),
-        ),
-        "_kotlin_compiler_reshade_rules": attr.label(
-            default = Label("//kotlin/internal/jvm:kotlin-compiler-reshade.jarjar"),
-            allow_single_file = True,
-        ),
-    },
 )
 
 kt_compiler_plugin = rule(
@@ -566,7 +555,7 @@ kt_compiler_plugin(
     name = "open_for_testing_plugin",
     id = "org.jetbrains.kotlin.allopen",
     options = {
-        "annotation": "plugin.OpenForTesting",
+        "annotation": ["plugin.OpenForTesting"],
     },
     deps = [
         "//kotlin/compiler:allopen-compiler-plugin",
@@ -608,9 +597,10 @@ kt_jvm_library(
             doc = "The ID of the plugin",
             mandatory = True,
         ),
-        "options": attr.string_dict(
+        "options": attr.string_list_dict(
             doc = """\
 Dictionary of options to be passed to the plugin.
+Each option key can have multiple values.
 Supports the following template values:
 
 - `{generatedClasses}`: directory for generated class output
@@ -623,20 +613,6 @@ Supports the following template values:
         "stubs_phase": attr.bool(
             doc = "Runs the compiler plugin in kapt stub generation.",
             default = True,
-        ),
-        "target_embedded_compiler": attr.bool(
-            doc = """Plugin was compiled against the embeddable kotlin compiler. These plugins expect shaded kotlinc
-            dependencies, and will fail when running against a non-embeddable compiler.""",
-            default = False,
-        ),
-        "_jarjar": attr.label(
-            executable = True,
-            cfg = "exec",
-            default = Label("//third_party:jarjar_runner"),
-        ),
-        "_kotlin_compiler_reshade_rules": attr.label(
-            default = Label("//kotlin/internal/jvm:kotlin-compiler-reshade.jarjar"),
-            allow_single_file = True,
         ),
     },
     implementation = _kt_compiler_plugin_impl,
@@ -682,15 +658,6 @@ kt_jvm_library(
         "processor_class": attr.string(
             doc = " The fully qualified class name that the Java compiler uses as an entry point to the annotation processor.",
             mandatory = True,
-        ),
-        "target_embedded_compiler": attr.bool(
-            doc = """Plugin was compiled against the embeddable kotlin compiler. These plugins expect shaded kotlinc
-            dependencies, and will fail when running against a non-embeddable compiler.""",
-            default = False,
-        ),
-        "_kotlin_compiler_reshade_rules": attr.label(
-            default = Label("//kotlin/internal/jvm:kotlin-compiler-reshade.jarjar"),
-            allow_single_file = True,
         ),
     },
     implementation = _kt_ksp_plugin_impl,
