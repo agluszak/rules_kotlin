@@ -15,22 +15,67 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load(":compiler.bzl", "kt_configure_compiler")
 load(":kapt.bzl", "kapt_compiler_plugin")
-load(":ksp.bzl", "kt_configure_ksp")
 
 package(default_visibility = ["//visibility:public"])
 
-# Configures the compiler
+# Configures compiler and stdlib/plugin labels from the downloaded Kotlin distribution.
 kt_configure_compiler()
 
-# Configures the KSP plugins
-kt_configure_ksp()
+# BTAPI runtime artifacts required by default toolchains.
+alias(
+    name = "kotlin-build-tools-impl",
+    actual = "@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_build_tools_impl",
+)
 
-bzl_library(
-    name = "compiler",
-    srcs = glob(["*.bzl"]),
+# Keep legacy stdlib labels for compatibility with existing toolchain defaults.
+alias(
+    name = "kotlin-stdlib-jdk7",
+    actual = ":kotlin-stdlib",
+)
+
+alias(
+    name = "kotlin-stdlib-jdk8",
+    actual = ":kotlin-stdlib",
+)
+
+alias(
+    name = "kotlin-compiler-embeddable",
+    actual = ":kotlin-compiler",
+)
+
+alias(
+    name = "kotlin-annotation-processing-embeddable",
+    actual = "@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_annotation_processing_embeddable",
+)
+
+# KSP2 processor classpath artifact.
+alias(
+    name = "symbol-processing-aa",
+    actual = "@rules_kotlin_maven//:com_google_devtools_ksp_symbol_processing_aa",
+)
+
+# Keep legacy/auxiliary KSP2 labels available in the release package.
+alias(
+    name = "symbol-processing-api",
+    actual = "@rules_kotlin_maven//:com_google_devtools_ksp_symbol_processing_api",
+)
+
+alias(
+    name = "symbol-processing-common-deps",
+    actual = "@rules_kotlin_maven//:com_google_devtools_ksp_symbol_processing_common_deps",
+)
+
+alias(
+    name = "ksp-intellij-kotlinx-coroutines-core-jvm",
+    actual = "@rules_kotlin_maven//:org_jetbrains_intellij_deps_kotlinx_kotlinx_coroutines_core_jvm",
 )
 
 kapt_compiler_plugin(
     name = "kapt",
     id = "org.jetbrains.kotlin.kapt3",
+)
+
+bzl_library(
+    name = "compiler",
+    srcs = glob(["*.bzl"]),
 )

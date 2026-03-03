@@ -526,6 +526,30 @@ def _reshade_embedded_kotlinc_jars(target, ctx, jars, deps):
 def _expand_location_with_data_deps(ctx):
     return lambda targets: ctx.expand_location(targets, ctx.attr.data)
 
+def _merge_plugin_options(options, option_lists):
+    merged = {}
+    all_keys = sorted({k: True for k in options.keys() + option_lists.keys()}.keys())
+    for key in all_keys:
+        values = []
+        if key in options:
+            values.append(options[key])
+        if key in option_lists:
+            values.extend(option_lists[key])
+        merged[key] = values
+    return merged
+
+def _merge_plugin_cfg_options(options, option_lists):
+    merged = {}
+    all_keys = sorted({k: True for k in options.keys() + option_lists.keys()}.keys())
+    for key in all_keys:
+        values = []
+        if key in options:
+            values.extend(options[key])
+        if key in option_lists:
+            values.extend(option_lists[key])
+        merged[key] = values
+    return merged
+
 def kt_compiler_plugin_impl(ctx):
     plugin_id = ctx.attr.id
 
@@ -546,8 +570,10 @@ def kt_compiler_plugin_impl(ctx):
 
     classpath = depset(info.runtime_output_jars, transitive = [info.transitive_runtime_jars])
 
-    # TODO(1035): Migrate kt_compiler_plugin.options to string_list_dict
-    options = plugin_common.resolve_plugin_options(plugin_id, {k: [v] for (k, v) in ctx.attr.options.items()}, _expand_location_with_data_deps(ctx))
+    options = plugin_common.resolve_plugin_options(
+        _merge_plugin_options(ctx.attr.options, ctx.attr.option_lists),
+        _expand_location_with_data_deps(ctx),
+    )
 
     return [
         DefaultInfo(files = classpath),
@@ -566,7 +592,12 @@ def kt_plugin_cfg_impl(ctx):
     plugin = ctx.attr.plugin[_KtCompilerPluginInfo]
     return [
         plugin,
-    ] + plugin.resolve_cfg(plugin, ctx.attr.options, ctx.attr.deps, _expand_location_with_data_deps(ctx))
+    ] + plugin.resolve_cfg(
+        plugin,
+        _merge_plugin_cfg_options(ctx.attr.options, ctx.attr.option_lists),
+        ctx.attr.deps,
+        _expand_location_with_data_deps(ctx),
+    )
 
 def kt_ksp_plugin_impl(ctx):
     deps = ctx.attr.deps

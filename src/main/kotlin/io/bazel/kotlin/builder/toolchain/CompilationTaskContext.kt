@@ -50,6 +50,8 @@ class CompilationTaskContext(
     throwable.printStackTrace(out)
   }
 
+  fun outputStream(): PrintStream = out
+
   @Suppress("unused")
   fun print(msg: String) {
     out.println(msg)

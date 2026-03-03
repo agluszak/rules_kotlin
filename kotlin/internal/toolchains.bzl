@@ -65,6 +65,19 @@ def _kotlin_toolchain_impl(ctx):
         )
         for jar in ctx.files.jvm_runtime
     ]
+    build_tools_info = ctx.attr.build_tools_impl[JavaInfo]
+    build_tools_full_compile_classpath = getattr(
+        build_tools_info,
+        "_transitive_full_compile_time_jars",
+        depset(),
+    )
+    build_tools_runtime_classpath = depset(
+        direct = build_tools_info.runtime_output_jars,
+        transitive = [
+            build_tools_info.transitive_runtime_jars,
+            build_tools_full_compile_classpath,
+        ],
+    )
 
     toolchain = dict(
         language_version = ctx.attr.language_version,
@@ -77,6 +90,11 @@ def _kotlin_toolchain_impl(ctx):
         ksp2 = ctx.attr.ksp2,
         ksp2_invoker = ctx.attr.ksp2_invoker,
         kotlin_home = ctx.attr.kotlin_home,
+        btapi_runtime_classpath = build_tools_runtime_classpath,
+        internal_jvm_abi_gen = ctx.file.internal_jvm_abi_gen,
+        internal_skip_code_gen = ctx.file.internal_skip_code_gen,
+        internal_kapt = ctx.file.internal_kapt,
+        internal_jdeps_gen = ctx.file.internal_jdeps_gen,
         jvm_stdlibs = java_common.merge(compile_time_providers + runtime_providers),
         jvm_emit_jdeps = ctx.attr._jvm_emit_jdeps[BuildSettingInfo].value,
         execution_requirements = {
@@ -133,6 +151,12 @@ _kt_toolchain = rule(
             enabled via the defines `kt_timings=1` and `kt_trace=1`. These can also be enabled on a per target bases by
             using `tags` attribute defined directly on the rules.""",
             allow_empty = True,
+        ),
+        "build_tools_impl": attr.label(
+            doc = "Build tools runtime implementation artifact.",
+            providers = [JavaInfo],
+            cfg = "exec",
+            default = Label("//kotlin/compiler:kotlin-build-tools-impl"),
         ),
         "experimental_build_tools_api": attr.bool(
             doc = "Enables experimental support for Build Tools API integration",
@@ -193,6 +217,30 @@ _kt_toolchain = rule(
             doc = """Compile using abi jars. Can be disabled for an individual target using the tag
             `kt_abi_plugin_incompatible`""",
             default = False,
+        ),
+        "internal_jdeps_gen": attr.label(
+            doc = "Internal Kotlin builder plugin: jdeps-gen.",
+            allow_single_file = True,
+            cfg = "exec",
+            default = Label("//src/main/kotlin:jdeps-gen"),
+        ),
+        "internal_jvm_abi_gen": attr.label(
+            doc = "Internal Kotlin builder plugin: jvm-abi-gen.",
+            allow_single_file = True,
+            cfg = "exec",
+            default = Label("//kotlin/compiler:jvm-abi-gen"),
+        ),
+        "internal_kapt": attr.label(
+            doc = "Internal Kotlin builder plugin: kotlin-annotation-processing-embeddable.",
+            allow_single_file = True,
+            cfg = "exec",
+            default = Label("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_annotation_processing_embeddable"),
+        ),
+        "internal_skip_code_gen": attr.label(
+            doc = "Internal Kotlin builder plugin: skip-code-gen.",
+            allow_single_file = True,
+            cfg = "exec",
+            default = Label("//src/main/kotlin:skip-code-gen"),
         ),
         "jacocorunner": attr.label(
             default = Label("@remote_java_tools//:jacoco_coverage_runner"),
@@ -355,6 +403,11 @@ def define_kt_toolchain(
         experimental_reduce_classpath_mode = None,
         experimental_multiplex_workers = None,
         experimental_build_tools_api = None,
+        build_tools_impl = None,
+        internal_jvm_abi_gen = None,
+        internal_skip_code_gen = None,
+        internal_jdeps_gen = None,
+        internal_kapt = None,
         javac_options = Label("//kotlin/internal:default_javac_options"),
         kotlinc_options = Label("//kotlin/internal:default_kotlinc_options"),
         jvm_stdlibs = None,
@@ -385,6 +438,11 @@ def define_kt_toolchain(
         experimental_report_unused_deps = experimental_report_unused_deps,
         experimental_reduce_classpath_mode = experimental_reduce_classpath_mode,
         experimental_build_tools_api = experimental_build_tools_api,
+        build_tools_impl = build_tools_impl if build_tools_impl != None else Label("//kotlin/compiler:kotlin-build-tools-impl"),
+        internal_jvm_abi_gen = internal_jvm_abi_gen if internal_jvm_abi_gen != None else Label("//kotlin/compiler:jvm-abi-gen"),
+        internal_skip_code_gen = internal_skip_code_gen if internal_skip_code_gen != None else Label("//src/main/kotlin:skip-code-gen"),
+        internal_jdeps_gen = internal_jdeps_gen if internal_jdeps_gen != None else Label("//src/main/kotlin:jdeps-gen"),
+        internal_kapt = internal_kapt if internal_kapt != None else Label("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_annotation_processing_embeddable"),
         javac_options = javac_options,
         kotlinc_options = kotlinc_options,
         visibility = ["//visibility:public"],

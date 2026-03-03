@@ -5,7 +5,7 @@ load("@rules_testing//lib:analysis_test.bzl", "analysis_test")
 load("@rules_testing//lib:test_suite.bzl", "test_suite")
 load("@rules_testing//lib:util.bzl", "util")
 load("//kotlin:core.bzl", "kt_compiler_plugin")
-load("//kotlin:jvm.bzl", "kt_jvm_import")
+load("//kotlin:jvm.bzl", "kt_jvm_import", "kt_jvm_library")
 load("//kotlin/internal:defs.bzl", _KtJvmInfo = "KtJvmInfo")
 load("//kotlin/internal/jvm:jvm_deps.bzl", _jvm_deps_utils = "jvm_deps_utils")
 
@@ -435,6 +435,63 @@ def _sourceless_dep_propagation_test(name):
         target = name + "_subject",
     )
 
+def _parse_flags(argv):
+    parsed_flags = {}
+    if argv == None:
+        return parsed_flags
+
+    last_flag = None
+    for arg in argv:
+        if arg == "--":
+            break
+        if arg.startswith("-"):
+            value = None
+            if "=" in arg:
+                last_flag, value = arg.split("=", 1)
+            else:
+                last_flag = arg
+            if value:
+                parsed_flags.setdefault(last_flag, []).append(value)
+            continue
+
+        if last_flag:
+            parsed_flags.setdefault(last_flag, []).append(arg)
+    return parsed_flags
+
+def _runtime_arg_plumbing_test_impl(env, target):
+    action = env.expect.that_target(target).action_named("KotlinCompile").actual
+    flags = _parse_flags(action.argv)
+    input_basenames = [f.basename for f in action.inputs.to_list()]
+
+    env.expect.that_bool("--btapi_runtime_classpath" in flags).equals(True)
+    env.expect.that_bool(len(flags["--btapi_runtime_classpath"]) > 0).equals(True)
+
+    for runtime_path in flags["--btapi_runtime_classpath"]:
+        env.expect.that_bool(runtime_path.split("/")[-1] in input_basenames).equals(True)
+
+    internal_flags = [
+        "--internal_jvm_abi_gen",
+        "--internal_skip_code_gen",
+        "--internal_kapt",
+        "--internal_jdeps",
+    ]
+    for flag in internal_flags:
+        env.expect.that_bool(flag in flags).equals(True)
+        env.expect.that_bool(len(flags[flag]) == 1).equals(True)
+        env.expect.that_bool(flags[flag][0].split("/")[-1] in input_basenames).equals(True)
+
+def _runtime_arg_plumbing_test(name):
+    util.helper_target(
+        kt_jvm_library,
+        name = name + "_subject",
+        srcs = [util.empty_file(name + ".kt")],
+    )
+    analysis_test(
+        name = name,
+        impl = _runtime_arg_plumbing_test_impl,
+        target = name + "_subject",
+    )
+
 def jvm_deps_test_suite(name):
     test_suite(
         name,
@@ -445,5 +502,6 @@ def jvm_deps_test_suite(name):
             _transitive_from_associates_test,
             _dep_infos_ordering_test,
             _sourceless_dep_propagation_test,
+            _runtime_arg_plumbing_test,
         ],
     )

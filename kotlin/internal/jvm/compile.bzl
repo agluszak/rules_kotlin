@@ -49,6 +49,22 @@ load(
     "//kotlin/internal/utils:utils.bzl",
     _utils = "utils",
 )
+load(
+    "//src/main/starlark/core/plugin:payload.bzl",
+    _plugin_payload = "plugin_payload",
+)
+
+# Runtime/tooling jars used by the worker are passed explicitly so they can be overridden via toolchain.
+_RUNTIME_ARG_SPECS = (
+    ("--btapi_runtime_classpath", "btapi_runtime_classpath"),
+)
+
+_INTERNAL_PLUGIN_ARG_SPECS = (
+    ("--internal_jvm_abi_gen", "internal_jvm_abi_gen"),
+    ("--internal_skip_code_gen", "internal_skip_code_gen"),
+    ("--internal_kapt", "internal_kapt"),
+    ("--internal_jdeps", "internal_jdeps_gen"),
+)
 
 # UTILITY ##############################################################################################################
 def find_java_toolchain(ctx, target):
@@ -117,6 +133,20 @@ def _fail_if_invalid_associate_deps(associate_deps, deps):
 def _java_infos_to_compile_jars(java_infos):
     return depset(transitive = [j.compile_jars for j in java_infos])
 
+def _runtime_inputs(toolchains):
+    return [getattr(toolchains.kt, attr_name) for _, attr_name in _RUNTIME_ARG_SPECS]
+
+def _internal_plugin_inputs(toolchains):
+    return [getattr(toolchains.kt, attr_name) for _, attr_name in _INTERNAL_PLUGIN_ARG_SPECS]
+
+def _add_runtime_args(args, toolchains):
+    for flag, attr_name in _RUNTIME_ARG_SPECS:
+        args.add_all(flag, getattr(toolchains.kt, attr_name))
+
+def _add_internal_plugin_args(args, toolchains):
+    for flag, attr_name in _INTERNAL_PLUGIN_ARG_SPECS:
+        args.add(flag, getattr(toolchains.kt, attr_name))
+
 def _exported_plugins(deps):
     """Encapsulates compiler dependency metadata."""
     plugins = []
@@ -165,9 +195,23 @@ def _adjust_resources_path(path, resource_strip_prefix):
         return _adjust_resources_path_by_default_prefixes(path)
 
 def _format_compile_plugin_options(o):
-    """Format compiler option into id:value for cmd line."""
+    """Format compiler option into plugin_id:key=value for cmd line."""
+    if o.value:
+        return [
+            "%s:%s=%s" % (o.id, o.key, o.value),
+        ]
     return [
-        "%s:%s" % (o.id, o.value),
+        "%s:%s" % (o.id, o.key),
+    ]
+
+def _with_plugin_id(plugin_id, options):
+    return [
+        struct(
+            id = plugin_id,
+            key = option.key,
+            value = option.value,
+        )
+        for option in options
     ]
 
 def _new_plugins_from(targets):
@@ -203,7 +247,7 @@ def _new_plugins_from(targets):
         all_plugins[plugin.id] = plugin
 
     if plugins_without_phase:
-        fail("has plugin without a phase defined: %s" % cfgs_without_plugin)
+        fail("has plugin without a phase defined: %s" % plugins_without_phase)
 
     all_plugin_cfgs = {}
     cfgs_without_plugin = []
@@ -218,9 +262,12 @@ def _new_plugins_from(targets):
     if cfgs_without_plugin:
         fail("has plugin configurations without corresponding plugins: %s" % cfgs_without_plugin)
 
+    plugins_for_payload = _new_plugins_for_payload(all_plugin_cfgs, all_plugins.values())
+
     return struct(
         stubs_phase = _new_plugin_from(all_plugin_cfgs, [p for p in all_plugins.values() if p.stubs]),
         compile_phase = _new_plugin_from(all_plugin_cfgs, [p for p in all_plugins.values() if p.compile]),
+        plugins_for_payload = plugins_for_payload,
     )
 
 def _new_plugin_from(all_cfgs, plugins_for_phase):
@@ -229,18 +276,42 @@ def _new_plugin_from(all_cfgs, plugins_for_phase):
     options = []
     for p in plugins_for_phase:
         classpath.append(p.classpath)
-        options.extend(p.options)
+        options.extend(_with_plugin_id(p.id, p.options))
         if p.id in all_cfgs:
             cfg = p.merge_cfgs(p, all_cfgs[p.id])
             classpath.append(cfg.classpath)
             data.append(cfg.data)
-            options.extend(cfg.options)
+            options.extend(_with_plugin_id(p.id, cfg.options))
 
     return struct(
         classpath = depset(transitive = classpath),
         data = depset(transitive = data),
         options = options,
     )
+
+def _new_plugins_for_payload(all_cfgs, all_plugins):
+    plugins = []
+    for p in all_plugins:
+        classpath = [p.classpath]
+        options = [o for o in p.options]
+        if p.id in all_cfgs:
+            cfg = p.merge_cfgs(p, all_cfgs[p.id])
+            classpath.append(cfg.classpath)
+            options.extend(cfg.options)
+
+        phases = []
+        if p.compile:
+            phases.append("compile")
+        if p.stubs:
+            phases.append("stubs")
+
+        plugins.append(struct(
+            id = p.id,
+            phases = phases,
+            classpath = depset(transitive = classpath),
+            options = options,
+        ))
+    return plugins
 
 # INTERNAL ACTIONS #####################################################################################################
 def _fold_jars_action(ctx, rule_kind, toolchains, output_jar, input_jars, action_type = ""):
@@ -548,6 +619,8 @@ def _run_kt_builder_action(
 
     kotlinc_options = ctx.attr.kotlinc_opts[KotlincOptions] if ctx.attr.kotlinc_opts else toolchains.kt.kotlinc_options
     javac_options = ctx.attr.javac_opts[JavacOptions] if ctx.attr.javac_opts else toolchains.kt.javac_options
+    runtime_inputs = _runtime_inputs(toolchains)
+    internal_plugin_inputs = _internal_plugin_inputs(toolchains)
 
     args = _utils.init_args(ctx, rule_kind, compile_deps.module_name, kotlinc_options)
 
@@ -562,6 +635,8 @@ def _run_kt_builder_action(
     args.add_all("--classpath", compile_deps.compile_jars)
     args.add("--reduced_classpath_mode", toolchains.kt.experimental_reduce_classpath_mode)
     args.add("--build_tools_api", toolchains.kt.experimental_build_tools_api)
+    _add_runtime_args(args, toolchains)
+    _add_internal_plugin_args(args, toolchains)
     args.add_all("--sources", srcs.all_srcs, omit_if_empty = True)
     args.add_all("--source_jars", srcs.src_jars + generated_src_jars, omit_if_empty = True)
     args.add_all("--deps_artifacts", deps_artifacts, omit_if_empty = True)
@@ -610,6 +685,7 @@ def _run_kt_builder_action(
         map_each = _format_compile_plugin_options,
         omit_if_empty = True,
     )
+    args.add("--plugins_payload", _plugin_payload.plugins_payload_json(plugins.plugins_for_payload))
 
     if not "kt_remove_private_classes_in_abi_plugin_incompatible" in ctx.attr.tags and toolchains.kt.experimental_remove_private_classes_in_abi_jars == True:
         args.add("--remove_private_classes_in_abi_jar", "true")
@@ -641,8 +717,9 @@ def _run_kt_builder_action(
     ctx.actions.run(
         mnemonic = mnemonic,
         inputs = depset(
-            srcs.all_srcs + srcs.src_jars + generated_src_jars,
+            srcs.all_srcs + srcs.src_jars + generated_src_jars + internal_plugin_inputs,
             transitive = [
+                depset(transitive = runtime_inputs),
                 compile_deps.associate_jars,
                 compile_deps.compile_jars,
                 transitive_runtime_jars,

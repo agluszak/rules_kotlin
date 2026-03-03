@@ -12,7 +12,10 @@ def _provider_test_impl(env, target):
     got_target = env.expect.that_target(target)
     got_target.has_provider(KtPluginConfiguration)
     got_provider = got_target.provider(KtPluginConfiguration, plugin_configuration_subject_factory)
-    got_provider.options().transform(desc = "option.value", map_each = lambda o: o.value).contains_at_least(want_options)
+    got_provider.options().transform(
+        desc = "option key/value",
+        map_each = lambda o: "%s=%s" % (o.key, o.value) if o.value else o.key,
+    ).contains_at_least(want_options)
     got_provider.id().equals(env.ctx.attr.want_plugin[KtCompilerPluginInfo].id)
 
 def _action_test_impl(env, target):
@@ -439,10 +442,188 @@ def _test_library_multiple_plugins_with_same_id(test):
         },
     )
 
+def _test_kt_plugin_cfg_multi_value_options(test):
+    plugin = test.have(
+        kt_compiler_plugin,
+        name = "plugin",
+        id = "test.multi",
+        deps = [
+            test.have(
+                kt_jvm_library,
+                name = "plugin_dep",
+                srcs = [
+                    test.artifact(
+                        name = "plugin.kt",
+                    ),
+                ],
+            ),
+        ],
+    )
+
+    cfg = test.got(
+        kt_plugin_cfg,
+        name = "got",
+        plugin = plugin,
+        option_lists = {
+            "annotation": [
+                "plugin.First",
+                "plugin.Second",
+            ],
+        },
+        deps = [],
+    )
+
+    analysis_test(
+        name = test.name,
+        impl = _provider_test_impl,
+        target = cfg,
+        attr_values = {
+            "want_deps": [],
+            "want_options": [
+                "annotation=plugin.First",
+                "annotation=plugin.Second",
+            ],
+            "want_plugin": plugin,
+        },
+        attrs = {
+            "want_deps": attr.label_list(providers = [JavaInfo]),
+            "want_options": attr.string_list(),
+            "want_plugin": attr.label(providers = [KtCompilerPluginInfo]),
+        },
+    )
+
+def _test_kt_plugin_cfg_merges_options_and_option_lists(test):
+    plugin = test.have(
+        kt_compiler_plugin,
+        name = "plugin",
+        id = "test.merged",
+        deps = [
+            test.have(
+                kt_jvm_library,
+                name = "plugin_dep",
+                srcs = [
+                    test.artifact(
+                        name = "plugin.kt",
+                    ),
+                ],
+            ),
+        ],
+    )
+
+    cfg = test.got(
+        kt_plugin_cfg,
+        name = "got",
+        plugin = plugin,
+        options = {
+            "annotation": ["plugin.Legacy"],
+        },
+        option_lists = {
+            "annotation": [
+                "plugin.First",
+                "plugin.Second",
+            ],
+        },
+        deps = [],
+    )
+
+    analysis_test(
+        name = test.name,
+        impl = _provider_test_impl,
+        target = cfg,
+        attr_values = {
+            "want_deps": [],
+            "want_options": [
+                "annotation=plugin.Legacy",
+                "annotation=plugin.First",
+                "annotation=plugin.Second",
+            ],
+            "want_plugin": plugin,
+        },
+        attrs = {
+            "want_deps": attr.label_list(providers = [JavaInfo]),
+            "want_options": attr.string_list(),
+            "want_plugin": attr.label(providers = [KtCompilerPluginInfo]),
+        },
+    )
+
+def _test_compiler_plugin_merges_options_and_option_lists(test):
+    plugin_jar = test.artifact(
+        name = "plugin.jar",
+    )
+
+    plugin = test.have(
+        kt_compiler_plugin,
+        name = "plugin",
+        id = "test.stub",
+        options = {
+            "annotation": "plugin.Legacy",
+        },
+        option_lists = {
+            "annotation": [
+                "plugin.First",
+                "plugin.Second",
+            ],
+        },
+        deps = [
+            test.have(
+                kt_jvm_import,
+                name = "plugin_jar",
+                jars = [
+                    plugin_jar,
+                ],
+            ),
+        ],
+    )
+
+    got = test.got(
+        kt_jvm_library,
+        name = "got_library",
+        srcs = [
+            test.artifact(
+                name = "got_library.kt",
+            ),
+        ],
+        plugins = [
+            plugin,
+        ],
+    )
+
+    analysis_test(
+        name = test.name,
+        impl = _action_test_impl,
+        target = got,
+        attr_values = {
+            "on_action_mnemonic": "KotlinCompile",
+            "want_flags": {
+                "--compiler_plugin_options": [
+                    "test.stub:annotation=plugin.Legacy",
+                    "test.stub:annotation=plugin.First",
+                    "test.stub:annotation=plugin.Second",
+                ],
+                "--stubs_plugin_options": [
+                    "test.stub:annotation=plugin.Legacy",
+                    "test.stub:annotation=plugin.First",
+                    "test.stub:annotation=plugin.Second",
+                ],
+            },
+            "want_inputs": [
+                plugin_jar,
+            ],
+        },
+        attrs = {
+            "on_action_mnemonic": attr.string(),
+            "want_flags": attr.string_list_dict(),
+            "want_inputs": attr.label_list(providers = [DefaultInfo], allow_files = True),
+        },
+    )
+
 def test_suite(name):
     suite(
         name,
         test_kt_plugin_cfg = _test_kt_plugin_cfg,
+        test_kt_plugin_cfg_multi_value_options = _test_kt_plugin_cfg_multi_value_options,
+        test_kt_plugin_cfg_merges_options_and_option_lists = _test_kt_plugin_cfg_merges_options_and_option_lists,
+        test_compiler_plugin_merges_options_and_option_lists = _test_compiler_plugin_merges_options_and_option_lists,
         test_compile_configuration = _test_compile_configuration,
         test_library_multiple_plugins_with_same_id = _test_library_multiple_plugins_with_same_id,
         test_compile_configuration_single_phase = _test_compile_configuration_single_phase,
