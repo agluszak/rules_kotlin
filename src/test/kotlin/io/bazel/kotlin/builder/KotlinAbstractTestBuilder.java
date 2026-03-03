@@ -16,6 +16,8 @@
  */
 package io.bazel.kotlin.builder;
 
+import io.bazel.kotlin.builder.tasks.jvm.InternalCompilerPlugins;
+import io.bazel.kotlin.builder.toolchain.BtapiRuntimeSpec;
 import io.bazel.kotlin.builder.toolchain.CompilationStatusException;
 import io.bazel.kotlin.builder.toolchain.CompilationTaskContext;
 import io.bazel.kotlin.builder.toolchain.KotlinToolchain;
@@ -102,6 +104,7 @@ abstract class KotlinAbstractTestBuilder<T> {
                 .setModuleName("some_bogus_module")
                 .setPlatform(Platform.JVM)
                 .setRuleKind(RuleKind.LIBRARY)
+                .setBuildToolsApi(true)
                 .setToolchainInfo(
                         KotlinToolchainInfo.newBuilder()
                                 .setCommon(
@@ -238,6 +241,29 @@ abstract class KotlinAbstractTestBuilder<T> {
                 new File(Deps.Dep.fromLabel("@kotlinx_serialization_core_jvm//file").singleCompileJar()),
                 new File(Deps.Dep.fromLabel("@kotlinx_serialization_json//file").singleCompileJar()),
                 new File(Deps.Dep.fromLabel("@kotlinx_serialization_json_jvm//file").singleCompileJar())
+        );
+    }
+
+    static InternalCompilerPlugins internalPluginsForTest() {
+        return InternalCompilerPlugins.fromPaths(
+                Deps.Dep.fromLabel("//kotlin/compiler:jvm-abi-gen").singleCompileJar(),
+                Deps.Dep.fromLabel("//src/main/kotlin:skip-code-gen").singleCompileJar(),
+                Deps.Dep.fromLabel("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_annotation_processing_embeddable").singleCompileJar(),
+                Deps.Dep.fromLabel("//src/main/kotlin:jdeps-gen").singleCompileJar()
+        );
+    }
+
+    static BtapiRuntimeSpec btapiRuntimeForTest() {
+        return new BtapiRuntimeSpec(
+                List.of(
+                        Path.of(Deps.Dep.fromLabel("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_build_tools_impl").singleCompileJar()),
+                        Path.of(Deps.Dep.fromLabel("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_compiler_embeddable").singleCompileJar()),
+                        Path.of(Deps.Dep.fromLabel("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_daemon_client").singleCompileJar()),
+                        Path.of(Deps.Dep.fromLabel("//kotlin/compiler:kotlin-stdlib").singleCompileJar()),
+                        Path.of(Deps.Dep.fromLabel("//kotlin/compiler:kotlin-reflect").singleCompileJar()),
+                        Path.of(Deps.Dep.fromLabel("//kotlin/compiler:kotlinx-coroutines-core-jvm").singleCompileJar()),
+                        Path.of(Deps.Dep.fromLabel("//kotlin/compiler:annotations").singleCompileJar())
+                )
         );
     }
 }

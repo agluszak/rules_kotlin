@@ -131,8 +131,8 @@ class KotlinToolchain private constructor(
     fun createToolchain(): KotlinToolchain =
       createToolchain(
         KOTLINC.verified().absoluteFile,
-        COMPILER.verified().absoluteFile,
         BUILD_TOOLS_API.verified().absoluteFile,
+        COMPILER.verified().absoluteFile,
         JVM_ABI_PLUGIN.verified().absoluteFile,
         SKIP_CODE_GEN_PLUGIN.verified().absoluteFile,
         JDEPS_GEN_PLUGIN.verified().absoluteFile,
@@ -155,21 +155,46 @@ class KotlinToolchain private constructor(
       kotlinxSerializationJson: File,
       kotlinxSerializationJsonJvm: File,
     ): KotlinToolchain =
+      createToolchain(
+        kotlinc = kotlinc,
+        buildTools = buildTools,
+        compiler = compiler,
+        jvmAbiGenFile = jvmAbiGenFile,
+        skipCodeGenFile = skipCodeGenFile,
+        jdepsGenFile = jdepsGenFile,
+        kaptFile = kaptFile,
+        extraClasspath =
+          listOf(
+            kotlinxSerializationCoreJvm,
+            kotlinxSerializationJson,
+            kotlinxSerializationJsonJvm,
+          ),
+      )
+
+    @JvmStatic
+    fun createToolchain(
+      kotlinc: File,
+      buildTools: File,
+      compiler: File,
+      jvmAbiGenFile: File,
+      skipCodeGenFile: File,
+      jdepsGenFile: File,
+      kaptFile: File,
+      extraClasspath: List<File>,
+    ): KotlinToolchain =
       KotlinToolchain(
-        listOf(
-          kotlinc,
-          compiler,
-          buildTools,
+        mutableListOf<File>().apply {
+          add(kotlinc)
+          add(compiler)
+          add(buildTools)
           // plugins *must* be preloaded. Not doing so causes class conflicts
           // (and a NoClassDef err) in the compiler extension interfaces.
           // This may cause issues in accepting user defined compiler plugins.
-          jvmAbiGenFile,
-          skipCodeGenFile,
-          jdepsGenFile,
-          kotlinxSerializationCoreJvm,
-          kotlinxSerializationJson,
-          kotlinxSerializationJsonJvm,
-        ),
+          add(jvmAbiGenFile)
+          add(skipCodeGenFile)
+          add(jdepsGenFile)
+          addAll(extraClasspath)
+        },
         jvmAbiGen =
           CompilerPlugin(
             jvmAbiGenFile.path,

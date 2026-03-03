@@ -16,7 +16,9 @@
  */
 package io.bazel.kotlin.builder.tasks
 
+import io.bazel.kotlin.builder.tasks.jvm.InternalCompilerPlugins
 import io.bazel.kotlin.builder.tasks.jvm.KotlinJvmTaskExecutor
+import io.bazel.kotlin.builder.toolchain.BtapiRuntimeSpec
 import io.bazel.kotlin.builder.toolchain.CompilationStatusException
 import io.bazel.kotlin.builder.toolchain.CompilationTaskContext
 import io.bazel.kotlin.builder.utils.ArgMap
@@ -84,6 +86,11 @@ class KotlinBuilder(
       REDUCED_CLASSPATH_MODE("--reduced_classpath_mode"),
       INSTRUMENT_COVERAGE("--instrument_coverage"),
       BUILD_TOOLS_API("--build_tools_api"),
+      BTAPI_RUNTIME_CLASSPATH("--btapi_runtime_classpath"),
+      INTERNAL_JVM_ABI_GEN("--internal_jvm_abi_gen"),
+      INTERNAL_SKIP_CODE_GEN("--internal_skip_code_gen"),
+      INTERNAL_KAPT("--internal_kapt"),
+      INTERNAL_JDEPS("--internal_jdeps"),
     }
   }
 
@@ -179,10 +186,45 @@ class KotlinBuilder(
     argMap: ArgMap,
   ) {
     val task = buildJvmTask(context.info, workingDir, argMap)
+    val btapiRuntime = buildBtapiRuntimeSpec(argMap)
+    val internalPlugins = buildInternalCompilerPlugins(argMap)
     context.whenTracing {
       printProto("jvm task message:", task)
     }
-    jvmTaskExecutor.execute(context, task)
+    if (btapiRuntime != null && internalPlugins != null) {
+      jvmTaskExecutor.execute(context, task, btapiRuntime, internalPlugins)
+    } else {
+      jvmTaskExecutor.execute(context, task)
+    }
+  }
+
+  private fun buildBtapiRuntimeSpec(argMap: ArgMap): BtapiRuntimeSpec? {
+    val hasRuntimeClasspath = argMap.hasAll(KotlinBuilderFlags.BTAPI_RUNTIME_CLASSPATH)
+    if (!hasRuntimeClasspath) {
+      return null
+    }
+    return BtapiRuntimeSpec.fromClasspathEntries(
+      classpath = argMap.mandatory(KotlinBuilderFlags.BTAPI_RUNTIME_CLASSPATH),
+    )
+  }
+
+  private fun buildInternalCompilerPlugins(argMap: ArgMap): InternalCompilerPlugins? {
+    val hasAnyInternalPaths =
+      argMap.hasAny(
+        KotlinBuilderFlags.INTERNAL_JVM_ABI_GEN,
+        KotlinBuilderFlags.INTERNAL_SKIP_CODE_GEN,
+        KotlinBuilderFlags.INTERNAL_KAPT,
+        KotlinBuilderFlags.INTERNAL_JDEPS,
+      )
+    if (!hasAnyInternalPaths) {
+      return null
+    }
+    return InternalCompilerPlugins.fromPaths(
+      jvmAbiGenJar = argMap.mandatorySingle(KotlinBuilderFlags.INTERNAL_JVM_ABI_GEN),
+      skipCodeGenJar = argMap.mandatorySingle(KotlinBuilderFlags.INTERNAL_SKIP_CODE_GEN),
+      kaptJar = argMap.mandatorySingle(KotlinBuilderFlags.INTERNAL_KAPT),
+      jdepsJar = argMap.mandatorySingle(KotlinBuilderFlags.INTERNAL_JDEPS),
+    )
   }
 
   private fun buildJvmTask(
