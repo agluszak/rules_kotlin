@@ -54,6 +54,18 @@ load(
     _plugin_payload = "plugin_payload",
 )
 
+# Runtime/tooling jars used by the worker are passed explicitly so they can be overridden via toolchain.
+_RUNTIME_ARG_SPECS = (
+    ("--btapi_runtime_classpath", "btapi_runtime_classpath"),
+)
+
+_INTERNAL_PLUGIN_ARG_SPECS = (
+    ("--internal_jvm_abi_gen", "internal_jvm_abi_gen"),
+    ("--internal_skip_code_gen", "internal_skip_code_gen"),
+    ("--internal_kapt", "internal_kapt"),
+    ("--internal_jdeps", "internal_jdeps_gen"),
+)
+
 # UTILITY ##############################################################################################################
 def find_java_toolchain(ctx, target):
     if _JAVA_TOOLCHAIN_TYPE in ctx.toolchains:
@@ -120,6 +132,20 @@ def _fail_if_invalid_associate_deps(associate_deps, deps):
 
 def _java_infos_to_compile_jars(java_infos):
     return depset(transitive = [j.compile_jars for j in java_infos])
+
+def _runtime_inputs(toolchains):
+    return [getattr(toolchains.kt, attr_name) for _, attr_name in _RUNTIME_ARG_SPECS]
+
+def _internal_plugin_inputs(toolchains):
+    return [getattr(toolchains.kt, attr_name) for _, attr_name in _INTERNAL_PLUGIN_ARG_SPECS]
+
+def _add_runtime_args(args, toolchains):
+    for flag, attr_name in _RUNTIME_ARG_SPECS:
+        args.add_all(flag, getattr(toolchains.kt, attr_name))
+
+def _add_internal_plugin_args(args, toolchains):
+    for flag, attr_name in _INTERNAL_PLUGIN_ARG_SPECS:
+        args.add(flag, getattr(toolchains.kt, attr_name))
 
 def _exported_plugins(deps):
     """Encapsulates compiler dependency metadata."""
@@ -593,6 +619,8 @@ def _run_kt_builder_action(
 
     kotlinc_options = ctx.attr.kotlinc_opts[KotlincOptions] if ctx.attr.kotlinc_opts else toolchains.kt.kotlinc_options
     javac_options = ctx.attr.javac_opts[JavacOptions] if ctx.attr.javac_opts else toolchains.kt.javac_options
+    runtime_inputs = _runtime_inputs(toolchains)
+    internal_plugin_inputs = _internal_plugin_inputs(toolchains)
 
     args = _utils.init_args(ctx, rule_kind, compile_deps.module_name, kotlinc_options)
 
@@ -607,6 +635,8 @@ def _run_kt_builder_action(
     args.add_all("--classpath", compile_deps.compile_jars)
     args.add("--reduced_classpath_mode", toolchains.kt.experimental_reduce_classpath_mode)
     args.add("--build_tools_api", toolchains.kt.experimental_build_tools_api)
+    _add_runtime_args(args, toolchains)
+    _add_internal_plugin_args(args, toolchains)
     args.add_all("--sources", srcs.all_srcs, omit_if_empty = True)
     args.add_all("--source_jars", srcs.src_jars + generated_src_jars, omit_if_empty = True)
     args.add_all("--deps_artifacts", deps_artifacts, omit_if_empty = True)
@@ -687,8 +717,9 @@ def _run_kt_builder_action(
     ctx.actions.run(
         mnemonic = mnemonic,
         inputs = depset(
-            srcs.all_srcs + srcs.src_jars + generated_src_jars,
+            srcs.all_srcs + srcs.src_jars + generated_src_jars + internal_plugin_inputs,
             transitive = [
+                depset(transitive = runtime_inputs),
                 compile_deps.associate_jars,
                 compile_deps.compile_jars,
                 transitive_runtime_jars,
