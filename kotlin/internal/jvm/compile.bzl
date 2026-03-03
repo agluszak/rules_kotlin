@@ -49,6 +49,10 @@ load(
     "//kotlin/internal/utils:utils.bzl",
     _utils = "utils",
 )
+load(
+    "//src/main/starlark/core/plugin:payload.bzl",
+    _plugin_payload = "plugin_payload",
+)
 
 # UTILITY ##############################################################################################################
 def find_java_toolchain(ctx, target):
@@ -217,7 +221,7 @@ def _new_plugins_from(targets):
         all_plugins[plugin.id] = plugin
 
     if plugins_without_phase:
-        fail("has plugin without a phase defined: %s" % cfgs_without_plugin)
+        fail("has plugin without a phase defined: %s" % plugins_without_phase)
 
     all_plugin_cfgs = {}
     cfgs_without_plugin = []
@@ -232,9 +236,12 @@ def _new_plugins_from(targets):
     if cfgs_without_plugin:
         fail("has plugin configurations without corresponding plugins: %s" % cfgs_without_plugin)
 
+    plugins_for_payload = _new_plugins_for_payload(all_plugin_cfgs, all_plugins.values())
+
     return struct(
         stubs_phase = _new_plugin_from(all_plugin_cfgs, [p for p in all_plugins.values() if p.stubs]),
         compile_phase = _new_plugin_from(all_plugin_cfgs, [p for p in all_plugins.values() if p.compile]),
+        plugins_for_payload = plugins_for_payload,
     )
 
 def _new_plugin_from(all_cfgs, plugins_for_phase):
@@ -255,6 +262,30 @@ def _new_plugin_from(all_cfgs, plugins_for_phase):
         data = depset(transitive = data),
         options = options,
     )
+
+def _new_plugins_for_payload(all_cfgs, all_plugins):
+    plugins = []
+    for p in all_plugins:
+        classpath = [p.classpath]
+        options = [o for o in p.options]
+        if p.id in all_cfgs:
+            cfg = p.merge_cfgs(p, all_cfgs[p.id])
+            classpath.append(cfg.classpath)
+            options.extend(cfg.options)
+
+        phases = []
+        if p.compile:
+            phases.append("compile")
+        if p.stubs:
+            phases.append("stubs")
+
+        plugins.append(struct(
+            id = p.id,
+            phases = phases,
+            classpath = depset(transitive = classpath),
+            options = options,
+        ))
+    return plugins
 
 # INTERNAL ACTIONS #####################################################################################################
 def _fold_jars_action(ctx, rule_kind, toolchains, output_jar, input_jars, action_type = ""):
@@ -624,6 +655,7 @@ def _run_kt_builder_action(
         map_each = _format_compile_plugin_options,
         omit_if_empty = True,
     )
+    args.add("--plugins_payload", _plugin_payload.plugins_payload_json(plugins.plugins_for_payload))
 
     if not "kt_remove_private_classes_in_abi_plugin_incompatible" in ctx.attr.tags and toolchains.kt.experimental_remove_private_classes_in_abi_jars == True:
         args.add("--remove_private_classes_in_abi_jar", "true")

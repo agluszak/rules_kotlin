@@ -54,6 +54,7 @@ class KotlinBuilder(
       SOURCE_JARS("--source_jars"),
       PROCESSOR_PATH("--processorpath"),
       PROCESSORS("--processors"),
+      PLUGINS_PAYLOAD("--plugins_payload"),
       STUBS_PLUGIN_OPTIONS("--stubs_plugin_options"),
       STUBS_PLUGIN_CLASS_PATH("--stubs_plugin_classpath"),
       COMPILER_PLUGIN_OPTIONS("--compiler_plugin_options"),
@@ -280,6 +281,10 @@ class KotlinBuilder(
         addAllCompilerPluginClasspath(
           argMap.optional(KotlinBuilderFlags.COMPILER_PLUGIN_CLASS_PATH) ?: emptyList(),
         )
+        argMap
+          .optionalSingle(KotlinBuilderFlags.PLUGINS_PAYLOAD)
+          ?.let(PluginsPayloadParser::parse)
+          ?.also(::addAllPlugins)
 
         argMap
           .optional(KotlinBuilderFlags.SOURCES)

@@ -200,7 +200,6 @@ kt_rules_test(
         "@rules_kotlin_dev_maven//:junit_junit",
     ],
 )
-
 test_suite(
     name = "tasks_tests",
     tests = [
