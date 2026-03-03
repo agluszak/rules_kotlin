@@ -619,6 +619,13 @@ Supports the following template values:
 """,
             default = {},
         ),
+        "option_lists": attr.string_list_dict(
+            doc = """\
+Dictionary of multi-value options to be passed to the plugin.
+Use this field for repeated option keys during the deprecation window.
+""",
+            default = {},
+        ),
         "stubs_phase": attr.bool(
             doc = "Runs the compiler plugin in kapt stub generation.",
             default = True,
@@ -719,7 +726,15 @@ kt_plugin_cfg = rule(
             cfg = "exec",
         ),
         "options": attr.string_list_dict(
+            doc = """\
+A dictionary of flag to values to be used as plugin configuration options.
+This field is retained for compatibility during the deprecation window.
+""",
+            default = {},
+        ),
+        "option_lists": attr.string_list_dict(
             doc = "A dictionary of flag to values to be used as plugin configuration options.",
+            default = {},
         ),
         "plugin": attr.label(
             doc = "The plugin to associate with this configuration",

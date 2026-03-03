@@ -165,9 +165,23 @@ def _adjust_resources_path(path, resource_strip_prefix):
         return _adjust_resources_path_by_default_prefixes(path)
 
 def _format_compile_plugin_options(o):
-    """Format compiler option into id:value for cmd line."""
+    """Format compiler option into plugin_id:key=value for cmd line."""
+    if o.value:
+        return [
+            "%s:%s=%s" % (o.id, o.key, o.value),
+        ]
     return [
-        "%s:%s" % (o.id, o.value),
+        "%s:%s" % (o.id, o.key),
+    ]
+
+def _with_plugin_id(plugin_id, options):
+    return [
+        struct(
+            id = plugin_id,
+            key = option.key,
+            value = option.value,
+        )
+        for option in options
     ]
 
 def _new_plugins_from(targets):
@@ -229,12 +243,12 @@ def _new_plugin_from(all_cfgs, plugins_for_phase):
     options = []
     for p in plugins_for_phase:
         classpath.append(p.classpath)
-        options.extend(p.options)
+        options.extend(_with_plugin_id(p.id, p.options))
         if p.id in all_cfgs:
             cfg = p.merge_cfgs(p, all_cfgs[p.id])
             classpath.append(cfg.classpath)
             data.append(cfg.data)
-            options.extend(cfg.options)
+            options.extend(_with_plugin_id(p.id, cfg.options))
 
     return struct(
         classpath = depset(transitive = classpath),
