@@ -20,10 +20,10 @@ _COMMON_DEPS = [
     "//src/main/kotlin/io/bazel/kotlin/builder/utils:utils",
     "//src/main/protobuf:kotlin_model_java_proto",
     "//src/main/protobuf:deps_java_proto",
-    "@rules_kotlin_dev_maven//:com_google_truth_truth",
-    "@rules_kotlin_dev_maven//:junit_junit",
-    "@rules_kotlin_dev_maven//:com_google_guava_guava",
-    "@rules_kotlin_dev_maven//:com_google_code_findbugs_jsr305",
+    "@rules_kotlin_maven_dev//:com_google_truth_truth",
+    "@rules_kotlin_maven_dev//:junit_junit",
+    "@rules_kotlin_maven_dev//:com_google_guava_guava",
+    "@rules_kotlin_maven_dev//:com_google_code_findbugs_jsr305",
 ]
 
 java_library(

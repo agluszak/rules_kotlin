@@ -112,7 +112,7 @@ maven.install(
     resolver = "maven",
 )
 maven.install(
-    name = "rules_kotlin_dev_maven",
+    name = "rules_kotlin_maven_dev",
     artifacts = [
         "com.google.code.findbugs:jsr305:3.0.2",
         "com.google.errorprone:error_prone_annotations:2.23.0",
@@ -137,7 +137,7 @@ maven.install(
     ],
     fail_if_repin_required = True,
     fetch_sources = True,
-    lock_file = "//:rules_kotlin_dev_maven_install.json",
+    lock_file = "//:rules_kotlin_maven_dev_install.json",
     repositories = [
         "https://maven-central.storage.googleapis.com/repos/central/data/",
         "https://maven.google.com",
@@ -162,10 +162,10 @@ maven.override(
 )
 use_repo(
     maven,
-    "rules_kotlin_dev_maven",
     "rules_kotlin_maven",
-    "unpinned_rules_kotlin_dev_maven",
+    "rules_kotlin_maven_dev",
     "unpinned_rules_kotlin_maven",
+    "unpinned_rules_kotlin_maven_dev",
 )
 
 bazel_dep(name = "rules_pkg", version = "1.0.1")

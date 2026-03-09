@@ -46,21 +46,21 @@ class KotlinToolchain private constructor(
       kotlinxSerializationJsonJvm: File,
     ): KotlinToolchain =
       KotlinToolchain(
-        mutableListOf<File>().apply {
-          add(kotlinc)
-          add(compiler)
-          add(buildTools)
+        listOf(
+          kotlinc,
+          compiler,
+          buildTools,
           // plugins *must* be preloaded. Not doing so causes class conflicts
           // (and a NoClassDef err) in the compiler extension interfaces.
           // This may cause issues in accepting user defined compiler plugins.
-          add(jvmAbiGenFile)
-          add(skipCodeGenFile)
-          add(jdepsGenFile)
-          add(kotlinStdlib)
-          add(kotlinReflect)
-          add(kotlinxSerializationCoreJvm)
-          add(kotlinxSerializationJsonJvm)
-        },
+          jvmAbiGenFile,
+          skipCodeGenFile,
+          jdepsGenFile,
+          kotlinStdlib,
+          kotlinReflect,
+          kotlinxSerializationCoreJvm,
+          kotlinxSerializationJsonJvm,
+        ),
         jvmAbiGen =
           CompilerPlugin(
             jvmAbiGenFile.path,
