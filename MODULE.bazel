@@ -5,12 +5,11 @@ module(
     repo_name = "rules_kotlin",
 )
 
-proto_version = "4.34.0"
+proto_version = "4.33.4"
 
-proto_module_version = "34.0.bcr.1"
+proto_version_parts = proto_version.split(".")
 
-# proto_version_parts = proto_version.split(".")
-# proto_module_version = ".".join(proto_version_parts[-2:])  # Last 2 parts
+proto_module_version = ".".join(proto_version_parts[-2:])  # Last 2 parts
 
 kotlin_version = "2.3.20-RC2"
 
@@ -135,24 +134,6 @@ maven.install(
         "com.squareup.moshi:moshi:1.15.2",
         "com.squareup.moshi:moshi-kotlin:1.15.2",
         "com.squareup.moshi:moshi-kotlin-codegen:1.15.2",
-        "org.jetbrains:annotations:13.0",
-        "org.jetbrains.kotlin:kotlin-stdlib:{}".format(kotlin_version),
-        "org.jetbrains.kotlin:kotlin-reflect:{}".format(kotlin_version),
-        "org.jetbrains.kotlin:kotlin-test:{}".format(kotlin_version),
-        "org.jetbrains.kotlin:kotlin-script-runtime:{}".format(kotlin_version),
-        "org.jetbrains.kotlin:kotlin-compiler:{}".format(kotlin_version),
-        "org.jetbrains.kotlin:kotlin-annotation-processing:{}".format(kotlin_version),
-        "org.jetbrains.kotlin:jvm-abi-gen:{}".format(kotlin_version),
-        "org.jetbrains.kotlin:kotlin-allopen-compiler-plugin:{}".format(kotlin_version),
-        "org.jetbrains.kotlin:kotlin-noarg-compiler-plugin:{}".format(kotlin_version),
-        "org.jetbrains.kotlin:kotlin-sam-with-receiver-compiler-plugin:{}".format(kotlin_version),
-        "org.jetbrains.kotlin:kotlin-serialization-compiler-plugin:{}".format(kotlin_version),
-        "org.jetbrains.kotlin:kotlin-parcelize-compiler:{}".format(kotlin_version),
-        "org.jetbrains.kotlin:kotlin-parcelize-runtime:{}".format(kotlin_version),
-        "com.google.devtools.ksp:symbol-processing-api:2.3.6",
-        "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.10.2",
-        "org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.8.1",
-        "org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.8.1",
     ],
     fail_if_repin_required = True,
     fetch_sources = True,
