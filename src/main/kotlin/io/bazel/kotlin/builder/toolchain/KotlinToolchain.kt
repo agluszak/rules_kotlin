@@ -16,8 +16,6 @@
  */
 package io.bazel.kotlin.builder.toolchain
 
-import io.bazel.kotlin.builder.utils.BazelRunFiles
-import io.bazel.kotlin.builder.utils.verified
 import java.io.File
 import java.io.PrintStream
 import java.lang.reflect.Method
@@ -25,98 +23,14 @@ import java.net.URLClassLoader
 
 class KotlinToolchain private constructor(
   private val baseJars: List<File>,
+  private val buildTools: File,
   val kapt3Plugin: CompilerPlugin,
   val jvmAbiGen: CompilerPlugin,
   val skipCodeGen: CompilerPlugin,
   val jdepsGen: CompilerPlugin,
 ) {
   companion object {
-    private val JVM_ABI_PLUGIN by lazy {
-      BazelRunFiles
-        .resolveVerifiedFromProperty(
-          "@com_github_jetbrains_kotlin...jvm-abi-gen",
-        ).toPath()
-    }
-
-    private val KAPT_PLUGIN by lazy {
-      BazelRunFiles
-        .resolveVerifiedFromProperty(
-          "@com_github_jetbrains_kotlin...kapt",
-        ).toPath()
-    }
-
-    private val COMPILER by lazy {
-      BazelRunFiles
-        .resolveVerifiedFromProperty(
-          "@rules_kotlin...compiler",
-        ).toPath()
-    }
-
-    private val SKIP_CODE_GEN_PLUGIN by lazy {
-      BazelRunFiles
-        .resolveVerifiedFromProperty(
-          "@rules_kotlin...skip-code-gen",
-        ).toPath()
-    }
-
-    private val JDEPS_GEN_PLUGIN by lazy {
-      BazelRunFiles
-        .resolveVerifiedFromProperty(
-          "@rules_kotlin...jdeps-gen",
-        ).toPath()
-    }
-
-    private val KOTLINC by lazy {
-      BazelRunFiles
-        .resolveVerifiedFromProperty(
-          "@com_github_jetbrains_kotlin...kotlin-compiler",
-        ).toPath()
-    }
-
-    private val KOTLINX_SERIALIZATION_CORE_JVM by lazy {
-      BazelRunFiles
-        .resolveVerifiedFromProperty(
-          "@com_github_jetbrains_kotlinx...serialization-core-jvm",
-        ).toPath()
-    }
-
-    private val KOTLINX_SERIALIZATION_JSON by lazy {
-      BazelRunFiles
-        .resolveVerifiedFromProperty(
-          "@com_github_jetbrains_kotlinx...serialization-json",
-        ).toPath()
-    }
-
-    private val KOTLINX_SERIALIZATION_JSON_JVM by lazy {
-      BazelRunFiles
-        .resolveVerifiedFromProperty(
-          "@com_github_jetbrains_kotlinx...serialization-json-jvm",
-        ).toPath()
-    }
-
-    private val BUILD_TOOLS_API by lazy {
-      BazelRunFiles
-        .resolveVerifiedFromProperty(
-          "@com_github_jetbrains_kotlin...build-tools-impl",
-        ).toPath()
-    }
-
     internal val NO_ARGS = arrayOf<Any>()
-
-    @JvmStatic
-    fun createToolchain(): KotlinToolchain =
-      createToolchain(
-        KOTLINC.verified().absoluteFile,
-        COMPILER.verified().absoluteFile,
-        BUILD_TOOLS_API.verified().absoluteFile,
-        JVM_ABI_PLUGIN.verified().absoluteFile,
-        SKIP_CODE_GEN_PLUGIN.verified().absoluteFile,
-        JDEPS_GEN_PLUGIN.verified().absoluteFile,
-        KAPT_PLUGIN.verified().absoluteFile,
-        KOTLINX_SERIALIZATION_CORE_JVM.toFile(),
-        KOTLINX_SERIALIZATION_JSON.toFile(),
-        KOTLINX_SERIALIZATION_JSON_JVM.toFile(),
-      )
 
     @JvmStatic
     fun createToolchain(
@@ -127,22 +41,27 @@ class KotlinToolchain private constructor(
       skipCodeGenFile: File,
       jdepsGenFile: File,
       kaptFile: File,
+      kotlinStdlib: File,
+      kotlinReflect: File,
       kotlinxSerializationCoreJvm: File,
-      kotlinxSerializationJson: File,
       kotlinxSerializationJsonJvm: File,
     ): KotlinToolchain =
       KotlinToolchain(
-        listOf(
-          kotlinc,
-          compiler,
-          buildTools,
-          jvmAbiGenFile,
-          skipCodeGenFile,
-          jdepsGenFile,
-          kotlinxSerializationCoreJvm,
-          kotlinxSerializationJson,
-          kotlinxSerializationJsonJvm,
-        ),
+        mutableListOf<File>().apply {
+          add(kotlinc)
+          add(compiler)
+          // plugins *must* be preloaded. Not doing so causes class conflicts
+          // (and a NoClassDef err) in the compiler extension interfaces.
+          // This may cause issues in accepting user defined compiler plugins.
+          add(jvmAbiGenFile)
+          add(skipCodeGenFile)
+          add(jdepsGenFile)
+          add(kotlinStdlib)
+          add(kotlinReflect)
+          add(kotlinxSerializationCoreJvm)
+          add(kotlinxSerializationJsonJvm)
+        },
+        buildTools = buildTools,
         jvmAbiGen =
           CompilerPlugin(
             jvmAbiGenFile.path,
@@ -166,12 +85,20 @@ class KotlinToolchain private constructor(
       )
   }
 
-  val classLoader by lazy {
-    URLClassLoader(
-      baseJars.map { it.toURI().toURL() }.toTypedArray(),
-      ClassLoader.getPlatformClassLoader(),
-    )
-  }
+  private fun createClassLoader(
+    baseJars: List<File>,
+    classLoader: ClassLoader = ClassLoader.getPlatformClassLoader(),
+  ): ClassLoader = URLClassLoader(baseJars.map { it.toURI().toURL() }.toTypedArray(), classLoader)
+
+  private val legacyClassLoader by lazy { createClassLoader(baseJars) }
+  private val btapiClassLoader by lazy { createClassLoader(baseJars + buildTools) }
+
+  private fun classLoader(useExperimentalBuildToolsAPI: Boolean): ClassLoader =
+    if (useExperimentalBuildToolsAPI) {
+      btapiClassLoader
+    } else {
+      legacyClassLoader
+    }
 
   data class CompilerPlugin(
     val jarPath: String,
@@ -179,7 +106,7 @@ class KotlinToolchain private constructor(
   )
 
   open class KotlincInvoker internal constructor(
-    toolchain: KotlinToolchain,
+    classLoader: ClassLoader,
     clazz: String,
   ) {
     private val compiler: Any
@@ -187,9 +114,9 @@ class KotlinToolchain private constructor(
     private val getCodeMethod: Method
 
     init {
-      val compilerClass = toolchain.classLoader.loadClass(clazz)
+      val compilerClass = classLoader.loadClass(clazz)
       val exitCodeClass =
-        toolchain.classLoader.loadClass("org.jetbrains.kotlin.cli.common.ExitCode")
+        classLoader.loadClass("org.jetbrains.kotlin.cli.common.ExitCode")
 
       compiler = compilerClass.getConstructor().newInstance()
       execMethod =
@@ -220,7 +147,10 @@ class KotlinToolchain private constructor(
         } else {
           "io.bazel.kotlin.compiler.BazelK2JVMCompiler"
         }
-      return KotlincInvoker(toolchain = toolchain, clazz = clazz)
+      return KotlincInvoker(
+        classLoader = toolchain.classLoader(useExperimentalBuildToolsAPI),
+        clazz = clazz,
+      )
     }
   }
 }
