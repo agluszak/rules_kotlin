@@ -16,6 +16,8 @@
  */
 package io.bazel.kotlin.builder.toolchain
 
+import io.bazel.kotlin.builder.utils.BazelRunFiles
+import io.bazel.kotlin.builder.utils.verified
 import java.io.File
 import java.io.PrintStream
 import java.lang.reflect.Method
@@ -29,7 +31,100 @@ class KotlinToolchain private constructor(
   val jdepsGen: CompilerPlugin,
 ) {
   companion object {
+    private val JVM_ABI_PLUGIN by lazy {
+      BazelRunFiles
+        .resolveVerifiedFromProperty(
+          "@com_github_jetbrains_kotlin...jvm-abi-gen",
+        ).toPath()
+    }
+
+    private val KAPT_PLUGIN by lazy {
+      BazelRunFiles
+        .resolveVerifiedFromProperty(
+          "@com_github_jetbrains_kotlin...kapt",
+        ).toPath()
+    }
+
+    private val COMPILER by lazy {
+      BazelRunFiles
+        .resolveVerifiedFromProperty(
+          "@rules_kotlin...compiler",
+        ).toPath()
+    }
+
+    private val SKIP_CODE_GEN_PLUGIN by lazy {
+      BazelRunFiles
+        .resolveVerifiedFromProperty(
+          "@rules_kotlin...skip-code-gen",
+        ).toPath()
+    }
+
+    private val JDEPS_GEN_PLUGIN by lazy {
+      BazelRunFiles
+        .resolveVerifiedFromProperty(
+          "@rules_kotlin...jdeps-gen",
+        ).toPath()
+    }
+
+    private val KOTLINC by lazy {
+      BazelRunFiles
+        .resolveVerifiedFromProperty(
+          "@com_github_jetbrains_kotlin...kotlin-compiler",
+        ).toPath()
+    }
+
+    private val KOTLIN_STDLIB by lazy {
+      BazelRunFiles
+        .resolveVerifiedFromProperty(
+          "@rules_kotlin...kotlin-stdlib",
+        ).toPath()
+    }
+
+    private val KOTLIN_REFLECT by lazy {
+      BazelRunFiles
+        .resolveVerifiedFromProperty(
+          "@rules_kotlin...kotlin-reflect",
+        ).toPath()
+    }
+
+    private val KOTLINX_SERIALIZATION_CORE_JVM by lazy {
+      BazelRunFiles
+        .resolveVerifiedFromProperty(
+          "@com_github_jetbrains_kotlinx...serialization-core-jvm",
+        ).toPath()
+    }
+
+    private val KOTLINX_SERIALIZATION_JSON_JVM by lazy {
+      BazelRunFiles
+        .resolveVerifiedFromProperty(
+          "@com_github_jetbrains_kotlinx...serialization-json-jvm",
+        ).toPath()
+    }
+
+    private val BUILD_TOOLS_API by lazy {
+      BazelRunFiles
+        .resolveVerifiedFromProperty(
+          "@com_github_jetbrains_kotlin...build-tools-impl",
+        ).toPath()
+    }
+
     internal val NO_ARGS = arrayOf<Any>()
+
+    @JvmStatic
+    fun createToolchain(): KotlinToolchain =
+      createToolchain(
+        kotlinc = KOTLINC.verified().absoluteFile,
+        buildTools = BUILD_TOOLS_API.verified().absoluteFile,
+        compiler = COMPILER.verified().absoluteFile,
+        jvmAbiGenFile = JVM_ABI_PLUGIN.verified().absoluteFile,
+        skipCodeGenFile = SKIP_CODE_GEN_PLUGIN.verified().absoluteFile,
+        jdepsGenFile = JDEPS_GEN_PLUGIN.verified().absoluteFile,
+        kaptFile = KAPT_PLUGIN.verified().absoluteFile,
+        kotlinStdlib = KOTLIN_STDLIB.verified().absoluteFile,
+        kotlinReflect = KOTLIN_REFLECT.verified().absoluteFile,
+        kotlinxSerializationCoreJvm = KOTLINX_SERIALIZATION_CORE_JVM.verified().absoluteFile,
+        kotlinxSerializationJsonJvm = KOTLINX_SERIALIZATION_JSON_JVM.verified().absoluteFile,
+      )
 
     @JvmStatic
     fun createToolchain(

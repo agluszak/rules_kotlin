@@ -19,6 +19,9 @@ package io.bazel.kotlin.builder.cmd
 
 import io.bazel.kotlin.builder.tasks.CompileKotlin
 import io.bazel.kotlin.builder.tasks.KotlinBuilder
+import io.bazel.kotlin.builder.tasks.jvm.InternalCompilerPlugins
+import io.bazel.kotlin.builder.tasks.jvm.KotlinJvmTaskExecutor
+import io.bazel.kotlin.builder.toolchain.KotlinToolchain
 import io.bazel.worker.Worker
 import kotlin.system.exitProcess
 
@@ -27,7 +30,18 @@ object Build {
   fun main(args: Array<String>) {
     Worker
       .from(args.toList()) {
-        start(CompileKotlin(KotlinBuilder()))
+        val toolchain = KotlinToolchain.createToolchain()
+        val plugins =
+          InternalCompilerPlugins(
+            toolchain.jvmAbiGen,
+            toolchain.skipCodeGen,
+            toolchain.kapt3Plugin,
+            toolchain.jdepsGen,
+          )
+        val compilerBuilder = KotlinToolchain.KotlincInvokerBuilder(toolchain)
+        val jvmTaskExecutor = KotlinJvmTaskExecutor(compilerBuilder, plugins)
+        val builder = KotlinBuilder(jvmTaskExecutor)
+        start(CompileKotlin(builder))
       }.run(::exitProcess)
   }
 }

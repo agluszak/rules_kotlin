@@ -527,11 +527,7 @@ define_kt_toolchain(<a href="#define_kt_toolchain-name">name</a>, <a href="#defi
                     <a href="#define_kt_toolchain-experimental_remove_private_classes_in_abi_jars">experimental_remove_private_classes_in_abi_jars</a>,
                     <a href="#define_kt_toolchain-experimental_remove_debug_info_in_abi_jars">experimental_remove_debug_info_in_abi_jars</a>, <a href="#define_kt_toolchain-experimental_strict_kotlin_deps">experimental_strict_kotlin_deps</a>,
                     <a href="#define_kt_toolchain-experimental_report_unused_deps">experimental_report_unused_deps</a>, <a href="#define_kt_toolchain-experimental_reduce_classpath_mode">experimental_reduce_classpath_mode</a>,
-                    <a href="#define_kt_toolchain-experimental_multiplex_workers">experimental_multiplex_workers</a>, <a href="#define_kt_toolchain-experimental_build_tools_api">experimental_build_tools_api</a>, <a href="#define_kt_toolchain-build_tools_impl">build_tools_impl</a>,
-                    <a href="#define_kt_toolchain-internal_compiler">internal_compiler</a>, <a href="#define_kt_toolchain-internal_kotlinc">internal_kotlinc</a>, <a href="#define_kt_toolchain-internal_kotlin_reflect">internal_kotlin_reflect</a>,
-                    <a href="#define_kt_toolchain-internal_kotlin_stdlib">internal_kotlin_stdlib</a>, <a href="#define_kt_toolchain-internal_kotlinx_serialization_core_jvm">internal_kotlinx_serialization_core_jvm</a>,
-                    <a href="#define_kt_toolchain-internal_kotlinx_serialization_json_jvm">internal_kotlinx_serialization_json_jvm</a>, <a href="#define_kt_toolchain-internal_jvm_abi_gen">internal_jvm_abi_gen</a>,
-                    <a href="#define_kt_toolchain-internal_skip_code_gen">internal_skip_code_gen</a>, <a href="#define_kt_toolchain-internal_jdeps_gen">internal_jdeps_gen</a>, <a href="#define_kt_toolchain-internal_kapt">internal_kapt</a>, <a href="#define_kt_toolchain-javac_options">javac_options</a>,
+                    <a href="#define_kt_toolchain-experimental_multiplex_workers">experimental_multiplex_workers</a>, <a href="#define_kt_toolchain-experimental_build_tools_api">experimental_build_tools_api</a>, <a href="#define_kt_toolchain-javac_options">javac_options</a>,
                     <a href="#define_kt_toolchain-kotlinc_options">kotlinc_options</a>, <a href="#define_kt_toolchain-jvm_stdlibs">jvm_stdlibs</a>, <a href="#define_kt_toolchain-jvm_runtime">jvm_runtime</a>, <a href="#define_kt_toolchain-jacocorunner">jacocorunner</a>, <a href="#define_kt_toolchain-exec_compatible_with">exec_compatible_with</a>,
                     <a href="#define_kt_toolchain-target_compatible_with">target_compatible_with</a>, <a href="#define_kt_toolchain-target_settings">target_settings</a>)
 </pre>
@@ -556,17 +552,6 @@ Define the Kotlin toolchain.
 | <a id="define_kt_toolchain-experimental_reduce_classpath_mode"></a>experimental_reduce_classpath_mode |  <p align="center"> - </p>   |  `None` |
 | <a id="define_kt_toolchain-experimental_multiplex_workers"></a>experimental_multiplex_workers |  <p align="center"> - </p>   |  `None` |
 | <a id="define_kt_toolchain-experimental_build_tools_api"></a>experimental_build_tools_api |  <p align="center"> - </p>   |  `None` |
-| <a id="define_kt_toolchain-build_tools_impl"></a>build_tools_impl |  <p align="center"> - </p>   |  `Label("@rules_kotlin//kotlin/compiler:kotlin-build-tools-impl")` |
-| <a id="define_kt_toolchain-internal_compiler"></a>internal_compiler |  <p align="center"> - </p>   |  `Label("@rules_kotlin//src/main/kotlin:compiler")` |
-| <a id="define_kt_toolchain-internal_kotlinc"></a>internal_kotlinc |  <p align="center"> - </p>   |  `Label("@rules_kotlin//kotlin/compiler:kotlin-compiler")` |
-| <a id="define_kt_toolchain-internal_kotlin_reflect"></a>internal_kotlin_reflect |  <p align="center"> - </p>   |  `Label("@rules_kotlin//kotlin/compiler:kotlin-reflect")` |
-| <a id="define_kt_toolchain-internal_kotlin_stdlib"></a>internal_kotlin_stdlib |  <p align="center"> - </p>   |  `Label("@rules_kotlin//kotlin/compiler:kotlin-stdlib")` |
-| <a id="define_kt_toolchain-internal_kotlinx_serialization_core_jvm"></a>internal_kotlinx_serialization_core_jvm |  <p align="center"> - </p>   |  `Label("@rules_kotlin//kotlin/compiler:kotlinx-serialization-core-jvm")` |
-| <a id="define_kt_toolchain-internal_kotlinx_serialization_json_jvm"></a>internal_kotlinx_serialization_json_jvm |  <p align="center"> - </p>   |  `Label("@rules_kotlin//kotlin/compiler:kotlinx-serialization-json-jvm")` |
-| <a id="define_kt_toolchain-internal_jvm_abi_gen"></a>internal_jvm_abi_gen |  <p align="center"> - </p>   |  `Label("@rules_kotlin//kotlin/compiler:jvm-abi-gen")` |
-| <a id="define_kt_toolchain-internal_skip_code_gen"></a>internal_skip_code_gen |  <p align="center"> - </p>   |  `Label("@rules_kotlin//src/main/kotlin:skip-code-gen")` |
-| <a id="define_kt_toolchain-internal_jdeps_gen"></a>internal_jdeps_gen |  <p align="center"> - </p>   |  `Label("@rules_kotlin//src/main/kotlin:jdeps-gen")` |
-| <a id="define_kt_toolchain-internal_kapt"></a>internal_kapt |  <p align="center"> - </p>   |  `Label("@rules_kotlin//kotlin/compiler:kotlin-annotation-processing")` |
 | <a id="define_kt_toolchain-javac_options"></a>javac_options |  <p align="center"> - </p>   |  `Label("@rules_kotlin//kotlin/internal:default_javac_options")` |
 | <a id="define_kt_toolchain-kotlinc_options"></a>kotlinc_options |  <p align="center"> - </p>   |  `Label("@rules_kotlin//kotlin/internal:default_kotlinc_options")` |
 | <a id="define_kt_toolchain-jvm_stdlibs"></a>jvm_stdlibs |  <p align="center"> - </p>   |  `None` |

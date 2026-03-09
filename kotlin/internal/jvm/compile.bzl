@@ -274,7 +274,10 @@ def _fold_jars_action(ctx, rule_kind, toolchains, output_jar, input_jars, action
         inputs = input_jars,
         outputs = [output_jar],
         executable = toolchains.java.single_jar,
-        arguments = [args],
+        arguments = [
+            ctx.actions.args().add_all(toolchains.kt.builder_args),
+            args,
+        ],
         progress_message = "Merging Kotlin output jar %%{label}%s from %d inputs" % (
             "" if not action_type else " (%s)" % action_type,
             len(input_jars),
@@ -385,7 +388,10 @@ def _run_merge_jdeps_action(ctx, toolchains, jdeps, outputs, deps):
         outputs = [f for f in outputs.values()],
         executable = toolchains.kt.jdeps_merger.files_to_run.executable,
         execution_requirements = toolchains.kt.execution_requirements,
-        arguments = [args],
+        arguments = [
+            ctx.actions.args().add_all(toolchains.kt.builder_args),
+            args,
+        ],
         progress_message = progress_message,
         toolchain = _TOOLCHAIN_TYPE,
     )
@@ -555,9 +561,6 @@ def _run_kt_builder_action(
     javac_options = ctx.attr.javac_opts[JavacOptions] if ctx.attr.javac_opts else toolchains.kt.javac_options
 
     args = _utils.init_args(ctx, rule_kind, compile_deps.module_name, kotlinc_options)
-    for flag, file in toolchains.kt.builder_args:
-        args.add(flag, file)
-
     for f, path in outputs.items():
         args.add("--" + f, path)
 
@@ -656,7 +659,6 @@ def _run_kt_builder_action(
                 deps_artifacts,
                 plugins.stubs_phase.classpath,
                 plugins.compile_phase.classpath,
-                depset(direct = [file for _, file in toolchains.kt.builder_args]),
             ],
         ),
         tools = [
@@ -668,7 +670,7 @@ def _run_kt_builder_action(
             toolchains.kt.execution_requirements,
             {"worker-key-mnemonic": mnemonic},
         ),
-        arguments = [args],
+        arguments = [ctx.actions.args().add_all(toolchains.kt.builder_args), args],
         progress_message = progress_message,
         env = {
             "LC_CTYPE": "en_US.UTF-8",  # For Java source files
