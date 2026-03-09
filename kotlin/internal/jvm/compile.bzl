@@ -483,23 +483,20 @@ def _run_ksp_builder_actions(
     if compile_deps.compile_jars:
         args.add_all("--libraries", compile_deps.compile_jars)
 
-    ksp2_invoker_info = toolchains.kt.ksp2_invoker[JavaInfo]
-
-    # KSP2 runtime dependencies are resolved via the invoker target closure in the toolchain.
-    ksp2_invoker_jars = depset(
-        direct = ksp2_invoker_info.runtime_output_jars,
-        transitive = [ksp2_invoker_info.transitive_runtime_jars],
+    # Collect KSP2 API JARs (needed by the worker to load KSP2 classes via reflection)
+    ksp2_api_jars = depset(
+        ctx.attr._ksp2_symbol_processing_api[JavaInfo].runtime_output_jars +
+        ctx.attr._ksp2_symbol_processing_aa[JavaInfo].runtime_output_jars +
+        ctx.attr._ksp2_symbol_processing_common_deps[JavaInfo].runtime_output_jars +
+        ctx.attr._ksp2_kotlinx_coroutines[JavaInfo].runtime_output_jars,
     )
 
-    # Add processor JARs - includes invoker/API jars, toolchain Kotlin runtime,
-    # and user processor/runtime jars.
-    #
-    # KSP2 analysis API requires Kotlin runtime classes such as
-    # kotlin.coroutines.jvm.internal.SpillingKt, which may be absent from
-    # target runtime deps (older stdlib versions). Always include toolchain
-    # runtime stdlibs on the processor classpath.
+    # Get the KSP2 invoker JAR (contains Ksp2Invoker class loaded via reflection)
+    ksp2_invoker_jars = toolchains.kt.ksp2_invoker[JavaInfo].runtime_output_jars
+
+    # Add processor JARs - includes KSP2 API JARs, invoker JAR, and user processor JARs
     args.add_all("--processor_classpath", ksp2_invoker_jars)
-    args.add_all("--processor_classpath", toolchains.kt.jvm_stdlibs.compile_jars)
+    args.add_all("--processor_classpath", ksp2_api_jars)
     if transitive_runtime_jars:
         args.add_all("--processor_classpath", transitive_runtime_jars)
 
@@ -508,12 +505,12 @@ def _run_ksp_builder_actions(
     ctx.actions.run(
         mnemonic = "KotlinKsp2",
         inputs = depset(
-            direct = all_source_files + srcs.src_jars,
+            direct = all_source_files + srcs.src_jars + ksp2_invoker_jars,
             transitive = [
                 compile_deps.compile_jars,
                 transitive_runtime_jars,
                 toolchains.java_runtime.files,
-                ksp2_invoker_jars,
+                ksp2_api_jars,
             ],
         ),
         tools = [
@@ -651,13 +648,12 @@ def _run_kt_builder_action(
     transitive_inputs = [
         compile_deps.associate_jars,
         compile_deps.compile_jars,
+        transitive_runtime_jars,
         deps_artifacts,
         plugins.stubs_phase.classpath,
         plugins.compile_phase.classpath,
         depset(direct = [file for _, file in toolchains.kt.builder_args]),
     ]
-    if annotation_processors:
-        transitive_inputs.append(transitive_runtime_jars)
 
     ctx.actions.run(
         mnemonic = mnemonic,
@@ -736,12 +732,10 @@ def _kt_jvm_produce_output_jar_actions(
     toolchains = _compiler_toolchains(ctx)
     srcs = _partitioned_srcs(ctx.files.srcs)
 
-    plugin_targets = ctx.attr.plugins + ctx.attr.deps + _exported_plugins(deps = ctx.attr.deps)
-
-    annotation_processors = _plugin_mappers.targets_to_annotation_processors(plugin_targets)
-    ksp_annotation_processors = _plugin_mappers.targets_to_ksp_annotation_processors(plugin_targets)
-    transitive_runtime_jars = _plugin_mappers.targets_to_transitive_runtime_jars(plugin_targets)
-    plugins = _new_plugins_from(plugin_targets)
+    annotation_processors = _plugin_mappers.targets_to_annotation_processors(ctx.attr.plugins + ctx.attr.deps)
+    ksp_annotation_processors = _plugin_mappers.targets_to_ksp_annotation_processors(ctx.attr.plugins + ctx.attr.deps)
+    transitive_runtime_jars = _plugin_mappers.targets_to_transitive_runtime_jars(ctx.attr.plugins + ctx.attr.deps)
+    plugins = _new_plugins_from(ctx.attr.plugins + _exported_plugins(deps = ctx.attr.deps))
 
     deps_artifacts = _deps_artifacts(toolchains, ctx.attr.deps + ctx.attr.associates)
 
@@ -764,7 +758,6 @@ def _kt_jvm_produce_output_jar_actions(
         annotation_processors = annotation_processors,
         ksp_annotation_processors = ksp_annotation_processors,
         transitive_runtime_jars = transitive_runtime_jars,
-        plugin_targets = plugin_targets,
         plugins = plugins,
         compile_jar = compile_jar,
         output_jdeps = output_jdeps,
@@ -869,7 +862,6 @@ def _run_kt_java_builder_actions(
         annotation_processors,
         ksp_annotation_processors,
         transitive_runtime_jars,
-        plugin_targets,
         plugins,
         compile_jar,
         output_jdeps):
@@ -979,12 +971,12 @@ def _run_kt_java_builder_actions(
     # Build Java
     # If there is Java source or KAPT/KSP generated Java source compile that Java and fold it into
     # the final ABI jar. Otherwise just use the KT ABI jar as final ABI jar.
-    ksp_generated_java_src_jars = generated_ksp_src_jars and is_ksp_processor_generating_java(plugin_targets)
+    ksp_generated_java_src_jars = generated_ksp_src_jars and is_ksp_processor_generating_java(ctx.attr.plugins)
     if srcs.java or generated_kapt_src_jars or srcs.src_jars or ksp_generated_java_src_jars:
         javac_opts = javac_options_to_flags(ctx.attr.javac_opts[JavacOptions] if ctx.attr.javac_opts else toolchains.kt.javac_options)
         javac_opts.extend([
             flag
-            for plugin in plugin_targets
+            for plugin in ctx.attr.plugins
             if JavacOptions in plugin
             for flag in javac_options_to_flags(plugin[JavacOptions])
         ])
@@ -998,9 +990,9 @@ def _run_kt_java_builder_actions(
             source_files = srcs.java,
             source_jars = generated_kapt_src_jars + srcs.src_jars + generated_ksp_src_jars,
             output = ctx.actions.declare_file(ctx.label.name + "-java.jar"),
-            deps = compile_deps.deps + kt_stubs_for_java + [p[JavaInfo] for p in plugin_targets if JavaInfo in p],
+            deps = compile_deps.deps + kt_stubs_for_java + [p[JavaInfo] for p in ctx.attr.plugins if JavaInfo in p],
             java_toolchain = toolchains.java,
-            plugins = _plugin_mappers.targets_to_annotation_processors_java_plugin_info(plugin_targets),
+            plugins = _plugin_mappers.targets_to_annotation_processors_java_plugin_info(ctx.attr.plugins),
             javac_opts = javac_opts,
             neverlink = getattr(ctx.attr, "neverlink", False),
             strict_deps = toolchains.kt.experimental_strict_kotlin_deps,

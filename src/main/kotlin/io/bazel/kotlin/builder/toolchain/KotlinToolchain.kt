@@ -23,7 +23,6 @@ import java.net.URLClassLoader
 
 class KotlinToolchain private constructor(
   private val baseJars: List<File>,
-  private val buildTools: File,
   val kapt3Plugin: CompilerPlugin,
   val jvmAbiGen: CompilerPlugin,
   val skipCodeGen: CompilerPlugin,
@@ -50,6 +49,7 @@ class KotlinToolchain private constructor(
         mutableListOf<File>().apply {
           add(kotlinc)
           add(compiler)
+          add(buildTools)
           // plugins *must* be preloaded. Not doing so causes class conflicts
           // (and a NoClassDef err) in the compiler extension interfaces.
           // This may cause issues in accepting user defined compiler plugins.
@@ -61,7 +61,6 @@ class KotlinToolchain private constructor(
           add(kotlinxSerializationCoreJvm)
           add(kotlinxSerializationJsonJvm)
         },
-        buildTools = buildTools,
         jvmAbiGen =
           CompilerPlugin(
             jvmAbiGenFile.path,
@@ -85,20 +84,12 @@ class KotlinToolchain private constructor(
       )
   }
 
-  private fun createClassLoader(
-    baseJars: List<File>,
-    classLoader: ClassLoader = ClassLoader.getPlatformClassLoader(),
-  ): ClassLoader = URLClassLoader(baseJars.map { it.toURI().toURL() }.toTypedArray(), classLoader)
-
-  private val legacyClassLoader by lazy { createClassLoader(baseJars) }
-  private val btapiClassLoader by lazy { createClassLoader(baseJars + buildTools) }
-
-  private fun classLoader(useExperimentalBuildToolsAPI: Boolean): ClassLoader =
-    if (useExperimentalBuildToolsAPI) {
-      btapiClassLoader
-    } else {
-      legacyClassLoader
-    }
+  val classLoader by lazy {
+    URLClassLoader(
+      baseJars.map { it.toURI().toURL() }.toTypedArray(),
+      ClassLoader.getPlatformClassLoader(),
+    )
+  }
 
   data class CompilerPlugin(
     val jarPath: String,
@@ -148,7 +139,7 @@ class KotlinToolchain private constructor(
           "io.bazel.kotlin.compiler.BazelK2JVMCompiler"
         }
       return KotlincInvoker(
-        classLoader = toolchain.classLoader(useExperimentalBuildToolsAPI),
+        classLoader = toolchain.classLoader,
         clazz = clazz,
       )
     }
