@@ -645,21 +645,19 @@ def _run_kt_builder_action(
         ctx.var.get("TARGET_CPU", "UNKNOWN CPU"),
     )
 
-    transitive_inputs = [
-        compile_deps.associate_jars,
-        compile_deps.compile_jars,
-        transitive_runtime_jars,
-        deps_artifacts,
-        plugins.stubs_phase.classpath,
-        plugins.compile_phase.classpath,
-        depset(direct = [file for _, file in toolchains.kt.builder_args]),
-    ]
-
     ctx.actions.run(
         mnemonic = mnemonic,
         inputs = depset(
             srcs.all_srcs + srcs.src_jars + generated_src_jars,
-            transitive = transitive_inputs,
+            transitive = [
+                compile_deps.associate_jars,
+                compile_deps.compile_jars,
+                transitive_runtime_jars,
+                deps_artifacts,
+                plugins.stubs_phase.classpath,
+                plugins.compile_phase.classpath,
+                depset(direct = [file for _, file in toolchains.kt.builder_args]),
+            ],
         ),
         tools = [
             toolchains.kt.kotlinbuilder.files_to_run,
