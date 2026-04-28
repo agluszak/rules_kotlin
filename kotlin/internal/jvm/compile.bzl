@@ -49,6 +49,10 @@ load(
     "//kotlin/internal/utils:utils.bzl",
     _utils = "utils",
 )
+load(
+    "//src/main/starlark/core/plugin:payload.bzl",
+    _plugin_payload = "plugin_payload",
+)
 
 # Keep BTAPI runtime artifact wiring in a single place for all worker actions.
 _BTAPI_RUNTIME_ARG_SPECS = (
@@ -227,7 +231,8 @@ def adjust_resources_path_by_strip_prefix_for_testing(path, resource_strip_prefi
     return _adjust_resources_path_by_strip_prefix(path, resource_strip_prefix)
 
 def _format_compile_plugin_options(option):
-    return "plugin:%s:%s=%s" % (option.id, option.key, option.value)
+    prefix = "plugin:%s:" % option.id if hasattr(option, "id") else ""
+    return "%s%s=%s" % (prefix, option.key, option.value)
 
 def _new_plugins_from(targets):
     """Returns a struct containing the plugin metadata for the given targets.
@@ -267,11 +272,9 @@ def _new_plugins_from(targets):
     if cfgs_without_plugin:
         fail("has plugin configurations without corresponding plugins: %s" % cfgs_without_plugin)
 
-    stubs_phase = struct(classpath = [], options = [], ids = [])
-    compile_phase = struct(classpath = [], options = [], ids = [])
-
     classpath = []
     data = []
+    plugins = []
 
     for p in all_plugins.values():
         plugin_classpath = [p.classpath]
@@ -282,30 +285,25 @@ def _new_plugins_from(targets):
             data.append(cfg.data)
             plugin_options.extend(cfg.options)
 
-        if p.stubs:
-            stubs_phase.classpath.append(depset(transitive = plugin_classpath))
-            stubs_phase.options.extend(plugin_options)
-            stubs_phase.ids.append(p.id)
+        phases = []
         if p.compile:
-            compile_phase.classpath.append(depset(transitive = plugin_classpath))
-            compile_phase.options.extend(plugin_options)
-            compile_phase.ids.append(p.id)
+            phases.append("compile")
+        if p.stubs:
+            phases.append("stubs")
+
+        plugins.append(struct(
+            id = p.id,
+            phases = phases,
+            classpath = depset(transitive = plugin_classpath),
+            options = plugin_options,
+        ))
 
         classpath.extend(plugin_classpath)
 
     return struct(
         classpath = depset(transitive = classpath),
         data = depset(transitive = data),
-        stubs_phase = struct(
-            classpath = depset(transitive = stubs_phase.classpath),
-            options = stubs_phase.options,
-            ids = stubs_phase.ids,
-        ),
-        compile_phase = struct(
-            classpath = depset(transitive = compile_phase.classpath),
-            options = compile_phase.options,
-            ids = compile_phase.ids,
-        ),
+        plugins = plugins,
     )
 
 # INTERNAL ACTIONS #####################################################################################################
@@ -721,43 +719,7 @@ def _run_kt_builder_action(
         uniquify = True,
     )
 
-    args.add_all(
-        "--stubs_plugin_classpath",
-        plugins.stubs_phase.classpath,
-        omit_if_empty = True,
-    )
-    if toolchains.kt.experimental_build_tools_api:
-        args.add_all(
-            "--stubs_plugins",
-            plugins.stubs_phase.ids,
-            omit_if_empty = True,
-        )
-
-    args.add_all(
-        "--stubs_plugin_options",
-        plugins.stubs_phase.options,
-        map_each = _format_compile_plugin_options,
-        omit_if_empty = True,
-    )
-
-    args.add_all(
-        "--compiler_plugin_classpath",
-        plugins.compile_phase.classpath,
-        omit_if_empty = True,
-    )
-    if toolchains.kt.experimental_build_tools_api:
-        args.add_all(
-            "--compiler_plugins",
-            plugins.compile_phase.ids,
-            omit_if_empty = True,
-        )
-
-    args.add_all(
-        "--compiler_plugin_options",
-        plugins.compile_phase.options,
-        map_each = _format_compile_plugin_options,
-        omit_if_empty = True,
-    )
+    args.add("--plugins_payload", _plugin_payload.plugins_payload_json(plugins.plugins))
 
     if not "kt_remove_private_classes_in_abi_plugin_incompatible" in ctx.attr.tags and toolchains.kt.experimental_remove_private_classes_in_abi_jars == True:
         args.add("--remove_private_classes_in_abi_jar", "true")
@@ -1021,6 +983,7 @@ def _run_kt_java_builder_actions(
         generated_ksp_src_jars.append(ksp_generated_src_jar)
 
     java_infos = []
+    ap_generated_src_jar = None
 
     if has_kt_sources:
         kt_runtime_jar = ctx.actions.declare_file(ctx.label.name + "-kt.jar")
@@ -1065,6 +1028,12 @@ def _run_kt_java_builder_actions(
     ksp_generating_java = generated_ksp_src_jars and is_ksp_processor_generating_java(ctx.attr.plugins)
     if srcs.java or generated_kapt_src_jars or srcs.src_jars or ksp_generating_java:
         javac_opts = javac_options_to_flags(ctx.attr.javac_opts[JavacOptions] if ctx.attr.javac_opts else toolchains.kt.javac_options)
+        javac_opts.extend([
+            flag
+            for plugin in ctx.attr.plugins
+            if JavacOptions in plugin
+            for flag in javac_options_to_flags(plugin[JavacOptions])
+        ])
         if len(srcs.kt) > 0:
             javac_opts.append("-proc:none")
 
@@ -1103,7 +1072,7 @@ def _run_kt_java_builder_actions(
         annotation_processing = _create_annotation_processing(
             annotation_processors = ksp_annotation_processors if is_ksp else annotation_processors,
             ap_class_jar = output_jars[0] if output_jars else None,
-            ap_source_jar = ksp_generated_src_jar if is_ksp else (ap_generated_src_jar if "ap_generated_src_jar" in locals() else None),
+            ap_source_jar = ksp_generated_src_jar if is_ksp else ap_generated_src_jar,
         )
 
     return struct(output_jars = output_jars, generated_src_jars = generated_kapt_src_jars + generated_ksp_src_jars, annotation_processing = annotation_processing)

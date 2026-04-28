@@ -17,6 +17,7 @@
 package io.bazel.kotlin.builder;
 
 import io.bazel.kotlin.builder.tasks.jvm.InternalCompilerPlugins;
+import io.bazel.kotlin.builder.toolchain.BtapiRuntimeSpec;
 import io.bazel.kotlin.builder.toolchain.CompilationStatusException;
 import io.bazel.kotlin.builder.toolchain.CompilationTaskContext;
 import io.bazel.kotlin.builder.toolchain.KotlinToolchain;
@@ -230,17 +231,22 @@ public abstract class KotlinAbstractTestBuilder<T> {
 
     public static KotlinToolchain toolchainForTest() {
         return KotlinToolchain.createToolchain(
-                new File(Deps.Dep.fromLabel("//kotlin/compiler:kotlin-compiler").singleCompileJar()),
-                new File(Deps.Dep.fromLabel("//kotlin/compiler:kotlin-build-tools-impl").singleCompileJar()),
-                new File(Deps.Dep.fromLabel("//src/main/kotlin:compiler").singleCompileJar()),
                 new File(Deps.Dep.fromLabel("//kotlin/compiler:jvm-abi-gen").singleCompileJar()),
                 new File(Deps.Dep.fromLabel("//src/main/kotlin:skip-code-gen").singleCompileJar()),
                 new File(Deps.Dep.fromLabel("//src/main/kotlin:jdeps-gen").singleCompileJar()),
-                new File(Deps.Dep.fromLabel("//kotlin/compiler:kotlin-annotation-processing").singleCompileJar()),
-                new File(Deps.Dep.fromLabel("//kotlin/compiler:kotlin-stdlib").singleCompileJar()),
-                new File(Deps.Dep.fromLabel("//kotlin/compiler:kotlin-reflect").singleCompileJar()),
-                new File(Deps.Dep.fromLabel("//kotlin/compiler:kotlinx-serialization-core-jvm").singleCompileJar()),
-                new File(Deps.Dep.fromLabel("//kotlin/compiler:kotlinx-serialization-json-jvm").singleCompileJar())
+                new File(Deps.Dep.fromLabel("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_annotation_processing_embeddable").singleCompileJar())
+        );
+    }
+
+    public static BtapiRuntimeSpec btapiRuntimeForTest() {
+        return new BtapiRuntimeSpec(
+                Path.of(Deps.Dep.fromLabel("//kotlin/compiler:kotlin-build-tools-impl").singleCompileJar()),
+                Path.of(Deps.Dep.fromLabel("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_compiler_embeddable").singleCompileJar()),
+                Path.of(Deps.Dep.fromLabel("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_daemon_client").singleCompileJar()),
+                Path.of(Deps.Dep.fromLabel("//kotlin/compiler:kotlin-stdlib").singleCompileJar()),
+                Path.of(Deps.Dep.fromLabel("//kotlin/compiler:kotlin-reflect").singleCompileJar()),
+                Path.of(Deps.Dep.fromLabel("//kotlin/compiler:kotlinx-coroutines-core-jvm").singleCompileJar()),
+                Path.of(Deps.Dep.fromLabel("//kotlin/compiler:annotations").singleCompileJar())
         );
     }
 
@@ -271,7 +277,7 @@ public abstract class KotlinAbstractTestBuilder<T> {
                         Deps.Dep.fromLabel("//src/main/kotlin:skip-code-gen").singleCompileJar(),
                         "io.bazel.kotlin.plugin.SkipCodeGen"),
                 new KotlinToolchain.CompilerPlugin(
-                        Deps.Dep.fromLabel("//kotlin/compiler:kotlin-annotation-processing").singleCompileJar(),
+                        Deps.Dep.fromLabel("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_annotation_processing_embeddable").singleCompileJar(),
                         "org.jetbrains.kotlin.kapt3"),
                 new KotlinToolchain.CompilerPlugin(
                         Deps.Dep.fromLabel("//src/main/kotlin:jdeps-gen").singleCompileJar(),

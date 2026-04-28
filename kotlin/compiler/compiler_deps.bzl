@@ -37,6 +37,7 @@ _COMPILER_TARGETS = [
     ("symbol-processing-aa", "com_google_devtools_ksp_symbol_processing_aa"),
     ("symbol-processing-api", "com_google_devtools_ksp_symbol_processing_api"),
     ("symbol-processing-common-deps", "com_google_devtools_ksp_symbol_processing_common_deps"),
+    ("ksp-intellij-kotlinx-coroutines-core-jvm", "org_jetbrains_intellij_deps_kotlinx_kotlinx_coroutines_core_jvm"),
 ]
 
 def kt_define_compiler_targets():
@@ -73,5 +74,10 @@ KOTLIN_BUILD_RUNTIME_STDLIBS = [
 ]
 
 # KSP2 needs IntelliJ coroutines variant rather than the default kotlinx artifact.
-# In current setup, we might use the same stdlib coroutines if special one is not available.
-KSP2_RUNTIME_STDLIBS = KOTLIN_STDLIBS
+KSP2_RUNTIME_STDLIBS = [
+    dep
+    for dep in KOTLIN_STDLIBS
+    if dep != "//kotlin/compiler:kotlinx-coroutines-core-jvm"
+] + [
+    "//kotlin/compiler:ksp-intellij-kotlinx-coroutines-core-jvm",
+]

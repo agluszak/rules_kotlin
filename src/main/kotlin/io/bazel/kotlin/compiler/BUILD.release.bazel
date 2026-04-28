@@ -11,25 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+load("@rules_java//java:defs.bzl", "java_import")
 
-load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
-
-filegroup(
-    name = "kotlin_compiler_reshade_rules",
-    srcs = ["kotlin-compiler-reshade.jarjar"],
-    visibility = ["//visibility:public"],
-)
-
-bzl_library(
-    name = "jvm",
-    srcs = glob(
-        ["*.bzl"],
-        exclude = ["android.bzl"],
-    ),
-    visibility = ["//visibility:public"],
-    deps = [
-        "//third_party:bzl",
-        "@bazel_skylib//lib:sets",
-        "@bazel_skylib//rules:common_settings",
-    ],
+java_import(
+    name = "compiler",
+    jars = ["compiler.jar"],
+    visibility = ["//src:__subpackages__"],
 )

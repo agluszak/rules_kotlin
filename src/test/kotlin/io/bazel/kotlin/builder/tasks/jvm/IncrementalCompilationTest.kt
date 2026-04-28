@@ -71,9 +71,9 @@ class IncrementalCompilationTest {
 
     private val jvmTaskExecutor by lazy {
         val runtime = BtapiRuntimeSpec(
-            Path.of(Deps.Dep.fromLabel("@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_build_tools_impl").singleCompileJar()),
-            Path.of(Deps.Dep.fromLabel("@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_compiler_embeddable").singleCompileJar()),
-            Path.of(Deps.Dep.fromLabel("@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_daemon_client").singleCompileJar()),
+            Path.of(Deps.Dep.fromLabel("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_build_tools_impl").singleCompileJar()),
+            Path.of(Deps.Dep.fromLabel("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_compiler_embeddable").singleCompileJar()),
+            Path.of(Deps.Dep.fromLabel("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_daemon_client").singleCompileJar()),
             Path.of(Deps.Dep.fromLabel("//kotlin/compiler:kotlin-stdlib").singleCompileJar()),
             Path.of(Deps.Dep.fromLabel("//kotlin/compiler:kotlin-reflect").singleCompileJar()),
             Path.of(Deps.Dep.fromLabel("//kotlin/compiler:kotlinx-coroutines-core-jvm").singleCompileJar()),
@@ -82,7 +82,7 @@ class IncrementalCompilationTest {
         val plugins = InternalCompilerPlugins.fromPaths(
             jvmAbiGenJar = Deps.Dep.fromLabel("//kotlin/compiler:jvm-abi-gen").singleCompileJar(),
             skipCodeGenJar = Deps.Dep.fromLabel("//src/main/kotlin:skip-code-gen").singleCompileJar(),
-            kaptJar = Deps.Dep.fromLabel("@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_annotation_processing_embeddable").singleCompileJar(),
+            kaptJar = Deps.Dep.fromLabel("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_annotation_processing_embeddable").singleCompileJar(),
             jdepsJar = Deps.Dep.fromLabel("//src/main/kotlin:jdeps-gen").singleCompileJar(),
         )
         KotlinJvmTaskExecutor(runtime, plugins)

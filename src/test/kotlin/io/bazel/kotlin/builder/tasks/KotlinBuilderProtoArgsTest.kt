@@ -22,7 +22,6 @@ import io.bazel.kotlin.builder.Deps.Dep
 import io.bazel.kotlin.builder.tasks.KotlinBuilder.Companion.KotlinBuilderFlags
 import io.bazel.kotlin.builder.tasks.jvm.KotlinJvmTaskExecutor
 import io.bazel.kotlin.builder.tasks.jvm.btapi.KotlinBtapiJvmTaskExecutor
-import io.bazel.kotlin.builder.toolchain.KotlinToolchain
 import io.bazel.kotlin.builder.utils.ArgMap
 import io.bazel.kotlin.builder.utils.ArgMaps
 import io.bazel.kotlin.model.CompilationTaskInfo
@@ -40,7 +39,7 @@ class KotlinBuilderProtoArgsTest {
   private val builder =
     KotlinBuilder(
       KotlinJvmTaskExecutor(
-        KotlinToolchain.KotlincInvokerBuilder(KotlinAbstractTestBuilder.toolchainForTest()),
+        KotlinAbstractTestBuilder.btapiRuntimeForTest(),
         KotlinAbstractTestBuilder.internalPluginsForTest(),
       ),
       KotlinBtapiJvmTaskExecutor(),

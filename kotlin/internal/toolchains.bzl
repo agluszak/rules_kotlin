@@ -69,6 +69,8 @@ def _kotlin_toolchain_impl(ctx):
         ksp2 = ctx.attr.ksp2,
         ksp2_invoker = ctx.attr.ksp2_invoker,
         snapshot_worker = ctx.attr.snapshot_worker,
+        build_tools_impl = ctx.attr.build_tools_impl,
+        experimental_build_tools_api = ctx.attr.experimental_build_tools_api,
         btapi_runtime_classpath = build_tools_runtime_classpath,
         # BTAPI components from WIP branch
         btapi_build_tools_impl = ctx.file.btapi_build_tools_impl,
@@ -79,10 +81,14 @@ def _kotlin_toolchain_impl(ctx):
         btapi_kotlin_coroutines = ctx.file.btapi_kotlin_coroutines,
         btapi_annotations = ctx.file.btapi_annotations,
         # Plugins using BTAPI or internal mechanisms
-        jvm_abi_gen = ctx.file.jvm_abi_gen if ctx.attr.experimental_build_tools_api else ctx.file.internal_jvm_abi_gen,
-        skip_code_gen = ctx.file.skip_code_gen if ctx.attr.experimental_build_tools_api else ctx.file.internal_skip_code_gen,
-        jdeps_gen = ctx.file.jdeps_gen if ctx.attr.experimental_build_tools_api else ctx.file.internal_jdeps_gen,
-        kapt = ctx.file.kapt if ctx.attr.experimental_build_tools_api else ctx.file.internal_kapt,
+        jvm_abi_gen = ctx.file.jvm_abi_gen,
+        skip_code_gen = ctx.file.skip_code_gen,
+        jdeps_gen = ctx.file.jdeps_gen,
+        kapt = ctx.file.kapt,
+        internal_jvm_abi_gen = ctx.file.internal_jvm_abi_gen,
+        internal_skip_code_gen = ctx.file.internal_skip_code_gen,
+        internal_jdeps_gen = ctx.file.internal_jdeps_gen,
+        internal_kapt = ctx.file.internal_kapt,
         jvm_stdlibs = java_common.merge(compile_time_providers + runtime_providers),
         jvm_emit_jdeps = ctx.attr._jvm_emit_jdeps[BuildSettingInfo].value,
         execution_requirements = {

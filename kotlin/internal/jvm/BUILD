@@ -15,9 +15,17 @@ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 # limitations under the License.
 load("//src/main/starlark/release:packager.bzl", "release_archive")
 
+exports_files(["kotlin-compiler-reshade.jarjar"])
+
+filegroup(
+    name = "kotlin_compiler_reshade_rules",
+    srcs = ["kotlin-compiler-reshade.jarjar"],
+    visibility = ["//visibility:public"],
+)
+
 release_archive(
     name = "pkg",
-    srcs = glob(["*.bzl"]),
+    srcs = glob(["*.bzl"]) + ["kotlin-compiler-reshade.jarjar"],
     src_map = {
         "BUILD.release.bazel": "BUILD.bazel",
     },

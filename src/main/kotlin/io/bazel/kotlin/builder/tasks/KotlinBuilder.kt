@@ -18,9 +18,8 @@ package io.bazel.kotlin.builder.tasks
 
 import io.bazel.kotlin.builder.tasks.jvm.InternalCompilerPlugins
 import io.bazel.kotlin.builder.tasks.jvm.KotlinJvmTaskExecutor
-import io.bazel.kotlin.builder.toolchain.BtapiRuntimeSpec
-
 import io.bazel.kotlin.builder.tasks.jvm.btapi.KotlinBtapiJvmTaskExecutor
+import io.bazel.kotlin.builder.toolchain.BtapiRuntimeSpec
 import io.bazel.kotlin.builder.toolchain.CompilationStatusException
 import io.bazel.kotlin.builder.toolchain.CompilationTaskContext
 import io.bazel.kotlin.builder.toolchain.ToolchainSpec
@@ -213,7 +212,7 @@ class KotlinBuilder(
     argMap: ArgMap,
   ) {
     val task = buildJvmTask(context.info, workingDir, argMap)
-    
+
     context.whenTracing {
       printProto("jvm task message:", task)
     }

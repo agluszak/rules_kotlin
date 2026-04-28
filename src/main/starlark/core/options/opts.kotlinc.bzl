@@ -130,6 +130,30 @@ Options:
         value_to_flag = None,
         map_value_to_flag = _map_jvm_target_to_flag,
     ),
+    "opt_in": struct(
+        args = dict(
+            default = [],
+            doc = "Enable API usages that require opt-in with an opt-in requirement marker with the given fully qualified name.",
+        ),
+        type = attr.string_list,
+        value_to_flag = None,
+        map_value_to_flag = _map_optin_class_to_flag,
+    ),
+    "progressive": struct(
+        flag = "-progressive",
+        args = dict(
+            default = False,
+            doc = """Enable progressive compiler mode.
+In this mode, deprecations and bug fixes for unstable code take effect immediately
+instead of going through a graceful migration cycle.
+Code written in progressive mode is backward compatible; however, code written without
+progressive mode enabled may cause compilation errors in progressive mode.""",
+        ),
+        type = attr.bool,
+        value_to_flag = {
+            True: ["-progressive"],
+        },
+    ),
     "warn": struct(
         args = dict(
             default = "report",

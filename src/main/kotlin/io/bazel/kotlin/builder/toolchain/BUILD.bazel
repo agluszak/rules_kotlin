@@ -32,8 +32,6 @@ kt_bootstrap_library(
         "//src/main/protobuf:kotlin_model_java_proto",
         "@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_build_tools_api",
         "@rules_kotlin_maven_dev//:com_google_protobuf_protobuf_java",
-        "@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_build_tools_api",
-        "@kotlin_rules_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm",
         "@rules_kotlin_maven_dev//:com_google_protobuf_protobuf_java_util",
     ],
 )

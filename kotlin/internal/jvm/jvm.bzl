@@ -531,6 +531,17 @@ DEPRECATED - please use `jar` and `srcjar` attributes.""",
 _kt_compiler_deps_aspect = aspect(
     implementation = _kt_compiler_deps_aspect_impl,
     attr_aspects = ["deps", "runtime_deps", "exports"],
+    attrs = {
+        "_jarjar": attr.label(
+            executable = True,
+            cfg = "exec",
+            default = Label("//third_party:jarjar_runner"),
+        ),
+        "_kotlin_compiler_reshade_rules": attr.label(
+            default = Label("//kotlin/internal/jvm:kotlin_compiler_reshade_rules"),
+            allow_single_file = True,
+        ),
+    },
 )
 
 kt_compiler_plugin = rule(
@@ -604,6 +615,20 @@ Supports the following template values:
             doc = "Runs the compiler plugin in kapt stub generation.",
             default = True,
         ),
+        "target_embedded_compiler": attr.bool(
+            doc = """Plugin was compiled against the embeddable kotlin compiler. These plugins expect shaded kotlinc
+            dependencies, and will fail when running against a non-embeddable compiler.""",
+            default = False,
+        ),
+        "_jarjar": attr.label(
+            executable = True,
+            cfg = "exec",
+            default = Label("//third_party:jarjar_runner"),
+        ),
+        "_kotlin_compiler_reshade_rules": attr.label(
+            default = Label("//kotlin/internal/jvm:kotlin_compiler_reshade_rules"),
+            allow_single_file = True,
+        ),
     },
     implementation = _kt_compiler_plugin_impl,
     provides = [_KtCompilerPluginInfo],
@@ -653,6 +678,15 @@ kt_jvm_library(
         "processor_class": attr.string(
             doc = " The fully qualified class name that the Java compiler uses as an entry point to the annotation processor.",
             mandatory = True,
+        ),
+        "target_embedded_compiler": attr.bool(
+            doc = """Plugin was compiled against the embeddable kotlin compiler. These plugins expect shaded kotlinc
+            dependencies, and will fail when running against a non-embeddable compiler.""",
+            default = False,
+        ),
+        "_kotlin_compiler_reshade_rules": attr.label(
+            default = Label("//kotlin/internal/jvm:kotlin_compiler_reshade_rules"),
+            allow_single_file = True,
         ),
     },
     implementation = _kt_ksp_plugin_impl,

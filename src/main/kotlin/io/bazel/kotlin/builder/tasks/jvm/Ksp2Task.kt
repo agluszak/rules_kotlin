@@ -178,7 +178,7 @@ class Ksp2Task : Work {
             invokerClass
               .getConstructor(ClassLoader::class.java)
               .newInstance(kspClassLoader)
-          
+
           val executeMethod =
             invokerClass.getMethod(
               "execute",
