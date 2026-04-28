@@ -22,6 +22,7 @@ import io.bazel.kotlin.builder.Deps.AnnotationProcessor;
 import io.bazel.kotlin.builder.Deps.Dep;
 import io.bazel.kotlin.builder.tasks.jvm.InternalCompilerPlugins;
 import io.bazel.kotlin.builder.tasks.jvm.KotlinJvmTaskExecutor;
+import io.bazel.kotlin.builder.tasks.jvm.btapi.KotlinBtapiJvmTaskExecutor;
 import io.bazel.kotlin.builder.toolchain.CompilationTaskContext;
 import io.bazel.kotlin.builder.toolchain.KotlinToolchain;
 import io.bazel.kotlin.model.CompilationTaskInfo;
@@ -42,8 +43,6 @@ public final class KotlinJvmTestBuilder extends KotlinAbstractTestBuilder<JvmCom
     public static Dep
             KOTLIN_ANNOTATIONS = Dep.fromLabel("//kotlin/compiler:annotations"),
             KOTLIN_STDLIB = Dep.fromLabel("//kotlin/compiler:kotlin-stdlib"),
-            KOTLIN_STDLIB_JDK7 = Dep.fromLabel("//kotlin/compiler:kotlin-stdlib-jdk7"),
-            KOTLIN_STDLIB_JDK8 = Dep.fromLabel("//kotlin/compiler:kotlin-stdlib-jdk8"),
             JVM_ABI_GEN = Dep.fromLabel("//kotlin/compiler:jvm-abi-gen");
 
     private static final JvmCompilationTask.Builder taskBuilder = JvmCompilationTask.newBuilder();
@@ -69,9 +68,7 @@ public final class KotlinJvmTestBuilder extends KotlinAbstractTestBuilder<JvmCom
         DirectoryType.createAll(instanceRoot(), ALL_DIRECTORY_TYPES);
 
         taskBuilder.getInputsBuilder()
-            .addClasspath(KOTLIN_STDLIB.singleCompileJar())
-            .addClasspath(KOTLIN_STDLIB_JDK7.singleCompileJar())
-            .addClasspath(KOTLIN_STDLIB_JDK8.singleCompileJar());
+            .addClasspath(KOTLIN_STDLIB.singleCompileJar());
 
         taskBuilder
                 .getDirectoriesBuilder()
@@ -94,6 +91,17 @@ public final class KotlinJvmTestBuilder extends KotlinAbstractTestBuilder<JvmCom
     @SafeVarargs
     public final Dep runCompileTask(Consumer<TaskBuilder>... setup) {
         return executeTask(jvmTaskExecutor()::execute, setup);
+    }
+
+    @SafeVarargs
+    public final Dep runBtapiCompileTask(Consumer<TaskBuilder>... setup) {
+        return executeTask(
+                (ctx, task) -> {
+                    try (KotlinBtapiJvmTaskExecutor executor = new KotlinBtapiJvmTaskExecutor()) {
+                        executor.execute(ctx, task, KotlinAbstractTestBuilder.toolchainSpecForTest());
+                    }
+                },
+                setup);
     }
 
     /**

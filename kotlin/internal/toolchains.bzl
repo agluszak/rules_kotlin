@@ -28,30 +28,10 @@ load(
 """Kotlin Toolchains
 
 This file contains macros for defining and registering specific toolchains.
-
-### Examples
-
-To override a tool chain use the appropriate macro in a `BUILD` file to declare the toolchain:
-
-```bzl
-load("@rules_kotlin//kotlin:toolchains.bzl", "define_kt_toolchain")
-
-define_kt_toolchain(
-    name= "custom_toolchain",
-    api_version = "2.1",
-    language_version = "2.1",
-)
-```
-and then register it in the `WORKSPACE`:
-```bzl
-register_toolchains("//:custom_toolchain")
-```
 """
 
 def _kotlin_toolchain_impl(ctx):
     # Create neverlink JavaInfo providers using actual compile_jars (header jars) from stdlib targets.
-    # Previously, this used ctx.files.jvm_stdlibs which returns DefaultInfo.files (processed jars),
-    # but we need the proper compile_jars (header jars) from the JavaInfo for correct compilation.
     compile_time_providers = []
     for target in ctx.attr.jvm_stdlibs:
         if JavaInfo in target:
@@ -69,6 +49,15 @@ def _kotlin_toolchain_impl(ctx):
         if JavaInfo in target
     ]
 
+    if ctx.attr.experimental_build_tools_api:
+        build_tools_info = ctx.attr.build_tools_impl[JavaInfo]
+        build_tools_runtime_classpath = depset(
+            direct = build_tools_info.runtime_output_jars,
+            transitive = [build_tools_info.transitive_runtime_jars],
+        )
+    else:
+        build_tools_runtime_classpath = depset()
+
     toolchain = dict(
         language_version = ctx.attr.language_version,
         api_version = ctx.attr.api_version,
@@ -80,6 +69,8 @@ def _kotlin_toolchain_impl(ctx):
         ksp2 = ctx.attr.ksp2,
         ksp2_invoker = ctx.attr.ksp2_invoker,
         snapshot_worker = ctx.attr.snapshot_worker,
+        btapi_runtime_classpath = build_tools_runtime_classpath,
+        # BTAPI components from WIP branch
         btapi_build_tools_impl = ctx.file.btapi_build_tools_impl,
         btapi_kotlin_compiler_embeddable = ctx.file.btapi_kotlin_compiler_embeddable,
         btapi_kotlin_daemon_client = ctx.file.btapi_kotlin_daemon_client,
@@ -87,14 +78,17 @@ def _kotlin_toolchain_impl(ctx):
         btapi_kotlin_reflect = ctx.file.btapi_kotlin_reflect,
         btapi_kotlin_coroutines = ctx.file.btapi_kotlin_coroutines,
         btapi_annotations = ctx.file.btapi_annotations,
-        internal_jvm_abi_gen = ctx.file.internal_jvm_abi_gen,
-        internal_skip_code_gen = ctx.file.internal_skip_code_gen,
-        internal_jdeps_gen = ctx.file.internal_jdeps_gen,
-        internal_kapt = ctx.file.internal_kapt,
+        # Plugins using BTAPI or internal mechanisms
+        jvm_abi_gen = ctx.file.jvm_abi_gen if ctx.attr.experimental_build_tools_api else ctx.file.internal_jvm_abi_gen,
+        skip_code_gen = ctx.file.skip_code_gen if ctx.attr.experimental_build_tools_api else ctx.file.internal_skip_code_gen,
+        jdeps_gen = ctx.file.jdeps_gen if ctx.attr.experimental_build_tools_api else ctx.file.internal_jdeps_gen,
+        kapt = ctx.file.kapt if ctx.attr.experimental_build_tools_api else ctx.file.internal_kapt,
         jvm_stdlibs = java_common.merge(compile_time_providers + runtime_providers),
         jvm_emit_jdeps = ctx.attr._jvm_emit_jdeps[BuildSettingInfo].value,
         execution_requirements = {
+            "supports-multiplex-sandboxing": "1" if ctx.attr.experimental_multiplex_sandboxing else "0",
             "supports-multiplex-workers": "1" if ctx.attr.experimental_multiplex_workers else "0",
+            "supports-path-mapping": "1" if ctx.attr.supports_path_mapping else "0",
             "supports-workers": "1",
         },
         experimental_use_abi_jars = ctx.attr.experimental_use_abi_jars,
@@ -120,152 +114,94 @@ def _kotlin_toolchain_impl(ctx):
     ]
 
 _kt_toolchain = rule(
-    doc = """The kotlin toolchain. This should not be created directly `define_kt_toolchain` should be used. The
-    rules themselves define the toolchain using that macro.""",
+    doc = """The kotlin toolchain.""",
     attrs = {
         "api_version": attr.string(
-            doc = "this is the -api_version flag [see](https://kotlinlang.org/docs/reference/compatibility.html).",
             default = "2.1",
-            values = [
-                "2.0",
-                "2.1",
-                "2.2",
-                "2.3",
-            ],
+            values = ["2.0", "2.1", "2.2", "2.3"],
         ),
         "btapi_annotations": attr.label(
-            doc = "BTAPI runtime: annotations artifact.",
             allow_single_file = True,
             cfg = "exec",
             default = Label("//kotlin/compiler:annotations"),
         ),
         "btapi_build_tools_impl": attr.label(
-            doc = "BTAPI runtime: kotlin-build-tools-impl artifact.",
             allow_single_file = True,
             cfg = "exec",
-            default = Label("@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_build_tools_impl"),
+            default = Label("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_build_tools_impl"),
         ),
         "btapi_kotlin_compiler_embeddable": attr.label(
-            doc = "BTAPI runtime: kotlin-compiler-embeddable artifact.",
             allow_single_file = True,
             cfg = "exec",
-            default = Label("@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_compiler_embeddable"),
+            default = Label("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_compiler_embeddable"),
         ),
         "btapi_kotlin_coroutines": attr.label(
-            doc = "BTAPI runtime: coroutines artifact.",
             allow_single_file = True,
             cfg = "exec",
             default = Label("//kotlin/compiler:kotlinx-coroutines-core-jvm"),
         ),
         "btapi_kotlin_daemon_client": attr.label(
-            doc = "BTAPI runtime: kotlin-daemon-client artifact.",
             allow_single_file = True,
             cfg = "exec",
-            default = Label("@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_daemon_client"),
+            default = Label("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_daemon_client"),
         ),
         "btapi_kotlin_reflect": attr.label(
-            doc = "BTAPI runtime: kotlin-reflect artifact.",
             allow_single_file = True,
             cfg = "exec",
             default = Label("//kotlin/compiler:kotlin-reflect"),
         ),
         "btapi_kotlin_stdlib": attr.label(
-            doc = "BTAPI runtime: kotlin-stdlib artifact.",
             allow_single_file = True,
             cfg = "exec",
             default = Label("//kotlin/compiler:kotlin-stdlib"),
         ),
-        "debug": attr.string_list(
-            doc = """Debugging tags passed to the builder. Two tags are supported. `timings` will cause the builder to
-            print timing information. `trace` will cause the builder to print tracing messages. These tags can be
-            enabled via the defines `kt_timings=1` and `kt_trace=1`. These can also be enabled on a per target bases by
-            using `tags` attribute defined directly on the rules.""",
-            allow_empty = True,
+        "build_tools_impl": attr.label(
+            providers = [JavaInfo],
+            cfg = "exec",
+            default = Label("//kotlin/compiler:kotlin-build-tools-impl"),
         ),
+        "experimental_build_tools_api": attr.bool(default = False),
+        "debug": attr.string_list(allow_empty = True),
         "experimental_ic_enable_logging": attr.label(
-            doc = "Enables verbose IC logging for debugging/testing",
             default = Label("//kotlin/settings:experimental_ic_enable_logging"),
         ),
         "experimental_incremental_compilation": attr.label(
-            doc = "Enables experimental support for incremental compilation",
             default = Label("//kotlin/settings:experimental_incremental_compilation"),
         ),
-        "experimental_multiplex_workers": attr.bool(
-            doc = """Run workers in multiplex mode.""",
-            default = False,
-        ),
+        "experimental_multiplex_sandboxing": attr.bool(default = False),
+        "experimental_multiplex_workers": attr.bool(default = True),
         "experimental_reduce_classpath_mode": attr.string(
-            doc = "Removes unneeded dependencies from the classpath",
             default = "NONE",
-            values = [
-                "NONE",
-                "KOTLINBUILDER_REDUCED",
-            ],
+            values = ["NONE", "KOTLINBUILDER_REDUCED"],
         ),
-        "experimental_remove_debug_info_in_abi_jars": attr.bool(
-            doc = """This applies the following compiler plugin option:
-              plugin:org.jetbrains.kotlin.jvm.abi:removeDebugInfo=true
-            Can be disabled for an individual target using the tag.
-            `kt_remove_debug_info_in_abi_plugin_incompatible`""",
-            default = False,
-        ),
-        "experimental_remove_private_classes_in_abi_jars": attr.bool(
-            doc = """This applies the following compiler plugin option:
-              plugin:org.jetbrains.kotlin.jvm.abi:removePrivateClasses=true
-            Can be disabled for an individual target using the tag.
-            `kt_remove_private_classes_in_abi_plugin_incompatible`""",
-            default = False,
-        ),
+        "experimental_remove_debug_info_in_abi_jars": attr.bool(default = False),
+        "experimental_remove_private_classes_in_abi_jars": attr.bool(default = False),
         "experimental_report_unused_deps": attr.string(
-            doc = "Report unused dependencies",
             default = "off",
-            values = [
-                "off",
-                "warn",
-                "error",
-            ],
+            values = ["off", "warn", "error"],
         ),
         "experimental_strict_kotlin_deps": attr.string(
-            doc = "Report strict deps violations",
             default = "off",
-            values = [
-                "off",
-                "warn",
-                "error",
-            ],
+            values = ["off", "warn", "error"],
         ),
-        "experimental_treat_internal_as_private_in_abi_jars": attr.bool(
-            doc = """This applies the following compiler plugin option:
-              plugin:org.jetbrains.kotlin.jvm.abi:treatInternalAsPrivate=true
-            Can be disabled for an individual target using the tag.
-            `kt_treat_internal_as_private_in_abi_plugin_incompatible`""",
-            default = False,
-        ),
-        "experimental_use_abi_jars": attr.bool(
-            doc = """Compile using abi jars. Can be disabled for an individual target using the tag
-            `kt_abi_plugin_incompatible`""",
-            default = False,
-        ),
+        "experimental_treat_internal_as_private_in_abi_jars": attr.bool(default = False),
+        "experimental_use_abi_jars": attr.bool(default = False),
         "internal_jdeps_gen": attr.label(
-            doc = "Internal Kotlin builder plugin: jdeps-gen.",
             allow_single_file = True,
             cfg = "exec",
             default = Label("//src/main/kotlin:jdeps-gen"),
         ),
         "internal_jvm_abi_gen": attr.label(
-            doc = "Internal Kotlin builder plugin: jvm-abi-gen.",
             allow_single_file = True,
             cfg = "exec",
             default = Label("//kotlin/compiler:jvm-abi-gen"),
         ),
         "internal_kapt": attr.label(
-            doc = "Internal Kotlin builder plugin: kotlin-annotation-processing-embeddable.",
             allow_single_file = True,
             cfg = "exec",
-            default = Label("@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_annotation_processing_embeddable"),
+            default = Label("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_annotation_processing_embeddable"),
         ),
         "internal_skip_code_gen": attr.label(
-            doc = "Internal Kotlin builder plugin: skip-code-gen.",
             allow_single_file = True,
             cfg = "exec",
             default = Label("//src/main/kotlin:skip-code-gen"),
@@ -273,116 +209,88 @@ _kt_toolchain = rule(
         "jacocorunner": attr.label(
             default = Label("@remote_java_tools//:jacoco_coverage_runner"),
         ),
-        "javac_options": attr.label(
-            doc = "Compiler options for javac",
-            providers = [JavacOptions],
+        "javac_options": attr.label(providers = [JavacOptions]),
+        "jdeps_gen": attr.label(
+            allow_single_file = True,
+            cfg = "exec",
+            default = Label("//src/main/kotlin:jdeps-gen"),
         ),
         "jdeps_merger": attr.label(
-            doc = "the jdeps merger executable",
             default = Label("//src/main/kotlin:jdeps_merger"),
             executable = True,
             allow_files = True,
             cfg = "exec",
         ),
+        "jvm_abi_gen": attr.label(
+            allow_single_file = True,
+            cfg = "exec",
+            default = Label("//kotlin/compiler:jvm-abi-gen"),
+        ),
         "jvm_runtime": attr.label_list(
-            doc = "The implicit jvm runtime libraries. This is internal.",
             providers = [JavaInfo],
             cfg = "target",
         ),
         "jvm_stdlibs": attr.label_list(
-            doc = "The jvm stdlibs. This is internal.",
             providers = [JavaInfo],
             cfg = "target",
         ),
         "jvm_target": attr.string(
-            doc = "the -jvm_target flag. This is only tested at 1.8.",
             default = "1.8",
-            values = [
-                "1.6",
-                "1.8",
-                "9",
-                "10",
-                "11",
-                "12",
-                "13",
-                "15",
-                "16",
-                "17",
-                "18",
-                "19",
-                "20",
-                "21",
-                "22",
-                "23",
-                "24",
-                "25",
-            ],
+            values = ["1.6", "1.8", "9", "10", "11", "12", "13", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25"],
+        ),
+        "kapt": attr.label(
+            allow_single_file = True,
+            cfg = "exec",
+            default = Label("//kotlin/compiler:kotlin-annotation-processing-embeddable"),
         ),
         "kotlinbuilder": attr.label(
-            doc = "the kotlin builder executable",
             default = Label("//src/main/kotlin:build"),
             executable = True,
             allow_files = True,
             cfg = "exec",
         ),
-        "kotlinc_options": attr.label(
-            doc = "Compiler options for kotlinc",
-            providers = [KotlincOptions],
-        ),
+        "kotlinc_options": attr.label(providers = [KotlincOptions]),
         "ksp2": attr.label(
-            doc = "the KSP2 worker executable",
             default = Label("//src/main/kotlin:ksp2"),
             executable = True,
             allow_files = True,
             cfg = "exec",
         ),
         "ksp2_invoker": attr.label(
-            doc = "the KSP2 invoker library JAR (loaded at runtime in KSP2 classloader)",
             default = Label("//src/main/kotlin:ksp2_invoker"),
             allow_files = True,
             cfg = "exec",
         ),
         "language_version": attr.string(
-            doc = "this is the -language_version flag [see](https://kotlinlang.org/docs/reference/compatibility.html)",
             default = "2.1",
-            values = [
-                "2.0",
-                "2.1",
-                "2.2",
-                "2.3",
-            ],
+            values = ["2.0", "2.1", "2.2", "2.3"],
         ),
         "snapshot_worker": attr.label(
-            doc = "the classpath snapshot worker executable",
             default = Label("//src/main/kotlin:snapshot"),
             executable = True,
             allow_files = True,
             cfg = "exec",
         ),
+        "skip_code_gen": attr.label(
+            allow_single_file = True,
+            cfg = "exec",
+            default = Label("//src/main/kotlin:skip-code-gen"),
+        ),
+        "supports_path_mapping": attr.bool(default = False),
         "_empty_jar": attr.label(
-            doc = """Empty jar for exporting JavaInfos.""",
             allow_single_file = True,
             cfg = "target",
             default = Label("//third_party:empty.jar"),
         ),
         "_empty_jdeps": attr.label(
-            doc = """Empty jdeps for exporting JavaInfos.""",
             allow_single_file = True,
             cfg = "target",
             default = Label("//third_party:empty.jdeps"),
         ),
         "_experimental_prune_transitive_deps": attr.label(
-            doc = """If enabled, compilation is performed against only direct dependencies.
-            Transitive deps required for compilation must be explicitly added. Using
-            kt_experimental_prune_transitive_deps_incompatible tag allows to exclude specific targets""",
             default = Label("//kotlin/settings:experimental_prune_transitive_deps"),
         ),
         "_experimental_strict_associate_dependencies": attr.label(
-            doc = """
-            If enabled, only the direct compile jars will be collected for each listed associate target
-            instead of the compelte transitive set of jars. This helps prevent Kotlin internals from leaking beyond
-            their intended exposure by only exposing the direct java outputs. Using
-            kt_experimental_prune_transitive_deps_incompatible tag allows to exclude specific targets""",
             default = Label("//kotlin/settings:experimental_strict_associate_dependencies"),
         ),
         "_jvm_emit_jdeps": attr.label(default = "//kotlin/settings:jvm_emit_jdeps"),
@@ -390,12 +298,6 @@ _kt_toolchain = rule(
     implementation = _kotlin_toolchain_impl,
     provides = [platform_common.ToolchainInfo],
 )
-
-_KT_DEFAULT_TOOLCHAIN = Label("//kotlin/internal:default_toolchain")
-
-def kt_register_toolchains():
-    """This macro registers the kotlin toolchain."""
-    native.register_toolchains(str(_KT_DEFAULT_TOOLCHAIN))
 
 # Evaluating the select in the context of bzl file to get its repository
 _DEBUG_SELECT = select({
@@ -406,7 +308,6 @@ _DEBUG_SELECT = select({
     "//conditions:default": [],
 })
 
-# Evaluating the labels in the context of bzl file to get its repository
 _EXPERIMENTAL_USE_ABI_JARS = str(Label("//kotlin/internal:experimental_use_abi_jars"))
 _NOEXPERIMENTAL_USE_ABI_JARS = str(Label("//kotlin/internal:noexperimental_use_abi_jars"))
 
@@ -423,8 +324,11 @@ def define_kt_toolchain(
         experimental_report_unused_deps = None,
         experimental_reduce_classpath_mode = None,
         experimental_multiplex_workers = None,
+        experimental_multiplex_sandboxing = None,
+        supports_path_mapping = None,
         experimental_incremental_compilation = None,
         experimental_ic_enable_logging = None,
+        experimental_build_tools_api = None,
         javac_options = Label("//kotlin/internal:default_javac_options"),
         kotlinc_options = Label("//kotlin/internal:default_kotlinc_options"),
         jvm_stdlibs = None,
@@ -441,6 +345,11 @@ def define_kt_toolchain(
         internal_skip_code_gen = None,
         internal_jdeps_gen = None,
         internal_kapt = None,
+        build_tools_impl = None,
+        jvm_abi_gen = None,
+        skip_code_gen = None,
+        jdeps_gen = None,
+        kapt = None,
         exec_compatible_with = None,
         target_compatible_with = None,
         target_settings = None):
@@ -462,18 +371,21 @@ def define_kt_toolchain(
         experimental_remove_private_classes_in_abi_jars = experimental_remove_private_classes_in_abi_jars,
         experimental_remove_debug_info_in_abi_jars = experimental_remove_debug_info_in_abi_jars,
         experimental_multiplex_workers = experimental_multiplex_workers,
+        experimental_multiplex_sandboxing = experimental_multiplex_sandboxing,
+        supports_path_mapping = supports_path_mapping,
         experimental_strict_kotlin_deps = experimental_strict_kotlin_deps,
         experimental_report_unused_deps = experimental_report_unused_deps,
         experimental_reduce_classpath_mode = experimental_reduce_classpath_mode,
         experimental_incremental_compilation = experimental_incremental_compilation,
         experimental_ic_enable_logging = experimental_ic_enable_logging,
+        experimental_build_tools_api = experimental_build_tools_api,
         javac_options = javac_options,
         kotlinc_options = kotlinc_options,
         visibility = ["//visibility:public"],
         jacocorunner = jacocorunner,
-        btapi_build_tools_impl = btapi_build_tools_impl if btapi_build_tools_impl != None else Label("@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_build_tools_impl"),
-        btapi_kotlin_compiler_embeddable = btapi_kotlin_compiler_embeddable if btapi_kotlin_compiler_embeddable != None else Label("@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_compiler_embeddable"),
-        btapi_kotlin_daemon_client = btapi_kotlin_daemon_client if btapi_kotlin_daemon_client != None else Label("@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_daemon_client"),
+        btapi_build_tools_impl = btapi_build_tools_impl if btapi_build_tools_impl != None else Label("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_build_tools_impl"),
+        btapi_kotlin_compiler_embeddable = btapi_kotlin_compiler_embeddable if btapi_kotlin_compiler_embeddable != None else Label("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_compiler_embeddable"),
+        btapi_kotlin_daemon_client = btapi_kotlin_daemon_client if btapi_kotlin_daemon_client != None else Label("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_daemon_client"),
         btapi_kotlin_stdlib = btapi_kotlin_stdlib if btapi_kotlin_stdlib != None else Label("//kotlin/compiler:kotlin-stdlib"),
         btapi_kotlin_reflect = btapi_kotlin_reflect if btapi_kotlin_reflect != None else Label("//kotlin/compiler:kotlin-reflect"),
         btapi_kotlin_coroutines = btapi_kotlin_coroutines if btapi_kotlin_coroutines != None else Label("//kotlin/compiler:kotlinx-coroutines-core-jvm"),
@@ -481,12 +393,15 @@ def define_kt_toolchain(
         internal_jvm_abi_gen = internal_jvm_abi_gen if internal_jvm_abi_gen != None else Label("//kotlin/compiler:jvm-abi-gen"),
         internal_skip_code_gen = internal_skip_code_gen if internal_skip_code_gen != None else Label("//src/main/kotlin:skip-code-gen"),
         internal_jdeps_gen = internal_jdeps_gen if internal_jdeps_gen != None else Label("//src/main/kotlin:jdeps-gen"),
-        internal_kapt = internal_kapt if internal_kapt != None else Label("@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_annotation_processing_embeddable"),
+        internal_kapt = internal_kapt if internal_kapt != None else Label("@rules_kotlin_maven//:org_jetbrains_kotlin_kotlin_annotation_processing_embeddable"),
+        build_tools_impl = build_tools_impl,
+        jvm_abi_gen = jvm_abi_gen,
+        skip_code_gen = skip_code_gen,
+        jdeps_gen = jdeps_gen,
+        kapt = kapt,
         jvm_stdlibs = jvm_stdlibs if jvm_stdlibs != None else [
             Label("//kotlin/compiler:annotations"),
             Label("//kotlin/compiler:kotlin-stdlib"),
-            Label("//kotlin/compiler:kotlin-stdlib-jdk7"),
-            Label("//kotlin/compiler:kotlin-stdlib-jdk8"),
         ],
         jvm_runtime = jvm_runtime if jvm_runtime != None else [
             Label("//kotlin/compiler:kotlin-stdlib"),
@@ -504,10 +419,7 @@ def define_kt_toolchain(
 
 def _kt_toolchain_alias_impl(ctx):
     toolchain_info = ctx.toolchains[_TOOLCHAIN_TYPE]
-
-    return [
-        toolchain_info,
-    ]
+    return [toolchain_info]
 
 _kt_toolchain_alias = rule(
     implementation = _kt_toolchain_alias_impl,
@@ -515,16 +427,13 @@ _kt_toolchain_alias = rule(
 )
 
 def kt_configure_toolchains():
-    """
-    Defines the toolchain_type and default toolchain for kotlin compilation.
-
-    Must be called in kotlin/internal/BUILD.bazel
-    """
+    """Defines the toolchain_type and default toolchain for kotlin compilation."""
     if native.package_name() != "kotlin/internal":
         fail("kt_configure_toolchains must be called in kotlin/internal not %s" % native.package_name())
 
     kt_kotlinc_options(
         name = "default_kotlinc_options",
+        include_stdlibs = "none",
         visibility = ["//visibility:public"],
     )
 

@@ -11,6 +11,6 @@ kt_jvm_test(
     ],
     deps = [
         "//src/main/kotlin/io/bazel/kotlin/generate:kotlin_release_options",
-        "@kotlin_rules_maven//:com_google_truth_truth",
+        "@rules_kotlin_maven_dev//:com_google_truth_truth",
     ],
 )

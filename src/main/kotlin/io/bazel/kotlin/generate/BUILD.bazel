@@ -1,25 +1,24 @@
-load("//kotlin:jvm.bzl", "kt_jvm_binary")
+load("//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library")
 
-alias(
-    name = "kotlin-compiler-runtime",
-    actual = "@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_compiler",
+kt_jvm_library(
+    name = "kotlin_release_options_lib",
+    srcs = glob(["**/*.kt"]),
+    visibility = [
+        "//src/test:__subpackages__",
+    ],
+    deps = [
+        "//kotlin/compiler:kotlin-compiler",
+    ],
 )
 
 kt_jvm_binary(
     name = "kotlin_release_options",
-    srcs = glob(["**/*.kt"]),
     args = [
         "--out",
         "$${BUILD_WORKSPACE_DIRECTORY}/src/main/starlark/core/repositories/kotlin",
     ],
     main_class = "io.bazel.kotlin.generate.WriteKotlincCapabilities",
-    visibility = [
-        "//src/test:__subpackages__",
-    ],
-    deps = [
-        ":kotlin-compiler-runtime",
-        "//kotlin/compiler:kotlin-reflect",
-        "@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_compiler_arguments_description",
-        "@kotlin_rules_maven//:org_jetbrains_kotlinx_kotlinx_serialization_json_jvm",
+    runtime_deps = [
+        ":kotlin_release_options_lib",
     ],
 )

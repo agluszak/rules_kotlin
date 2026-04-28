@@ -1,5 +1,4 @@
 load("//kotlin:jvm.bzl", "kt_jvm_test")
-load("//src/test/kotlin/io/bazel/kotlin:defs.bzl", "kt_rules_test")
 
 # Copyright 2020 The Bazel Authors. All rights reserved.
 #
@@ -16,14 +15,6 @@ load("//src/test/kotlin/io/bazel/kotlin:defs.bzl", "kt_rules_test")
 # limitations under the License.
 package(default_visibility = ["//src:__subpackages__"])
 
-kt_rules_test(
-    name = "SourceJarCreatorTest",
-    srcs = ["jars/SourceJarCreatorTest.java"],
-    deps = [
-        "//src/main/kotlin/io/bazel/kotlin/builder/utils/jars",
-    ],
-)
-
 kt_jvm_test(
     name = "JarCreatorTest",
     srcs = ["jars/JarCreatorTest.kt"],
@@ -31,8 +22,8 @@ kt_jvm_test(
     deps = [
         "//src/main/kotlin/io/bazel/kotlin/builder/utils/jars",
         "//src/test/kotlin/io/bazel/testing",
-        "@kotlin_rules_maven//:com_google_truth_truth",
-        "@kotlin_rules_maven//:junit_junit",
+        "@rules_kotlin_maven_dev//:com_google_truth_truth",
+        "@rules_kotlin_maven_dev//:junit_junit",
     ],
 )
 
@@ -42,8 +33,8 @@ kt_jvm_test(
     test_class = "io.bazel.kotlin.builder.utils.ArgMapTest",
     deps = [
         "//src/main/kotlin/io/bazel/kotlin/builder/utils",
-        "@kotlin_rules_maven//:com_google_truth_truth",
-        "@kotlin_rules_maven//:junit_junit",
+        "@rules_kotlin_maven_dev//:com_google_truth_truth",
+        "@rules_kotlin_maven_dev//:junit_junit",
     ],
 )
 
@@ -52,6 +43,5 @@ test_suite(
     tests = [
         ":ArgMapTest",
         ":JarCreatorTest",
-        ":SourceJarCreatorTest",
     ],
 )

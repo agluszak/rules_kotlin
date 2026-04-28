@@ -19,8 +19,11 @@ package io.bazel.kotlin.builder.tasks
 import io.bazel.kotlin.builder.tasks.jvm.InternalCompilerPlugins
 import io.bazel.kotlin.builder.tasks.jvm.KotlinJvmTaskExecutor
 import io.bazel.kotlin.builder.toolchain.BtapiRuntimeSpec
+
+import io.bazel.kotlin.builder.tasks.jvm.btapi.KotlinBtapiJvmTaskExecutor
 import io.bazel.kotlin.builder.toolchain.CompilationStatusException
 import io.bazel.kotlin.builder.toolchain.CompilationTaskContext
+import io.bazel.kotlin.builder.toolchain.ToolchainSpec
 import io.bazel.kotlin.builder.utils.ArgMap
 import io.bazel.kotlin.builder.utils.ArgMaps
 import io.bazel.kotlin.builder.utils.Flag
@@ -41,6 +44,7 @@ import java.util.regex.Pattern
 @Suppress("MemberVisibilityCanBePrivate")
 class KotlinBuilder(
   private val jvmTaskExecutor: KotlinJvmTaskExecutor,
+  private val btapiTaskExecutor: KotlinBtapiJvmTaskExecutor,
 ) {
   companion object {
     @JvmStatic
@@ -58,6 +62,12 @@ class KotlinBuilder(
       PROCESSOR_PATH("--processorpath"),
       PROCESSORS("--processors"),
       PLUGINS_PAYLOAD("--plugins_payload"),
+      STUBS_PLUGIN_OPTIONS("--stubs_plugin_options"),
+      STUBS_PLUGINS("--stubs_plugins"),
+      STUBS_PLUGIN_CLASS_PATH("--stubs_plugin_classpath"),
+      COMPILER_PLUGIN_OPTIONS("--compiler_plugin_options"),
+      COMPILER_PLUGINS("--compiler_plugins"),
+      COMPILER_PLUGIN_CLASS_PATH("--compiler_plugin_classpath"),
       OUTPUT("--output"),
       RULE_KIND("--rule_kind"),
       MODULE_NAME("--kotlin_module_name"),
@@ -85,6 +95,8 @@ class KotlinBuilder(
       INCREMENTAL_COMPILATION("--incremental_compilation"),
       IC_ENABLE_LOGGING("--ic_enable_logging"),
       CLASSPATH_SNAPSHOTS("--classpath_snapshots"),
+      BUILD_TOOLS_API("--build_tools_api"),
+      BTAPI_RUNTIME_CLASSPATH("--btapi_runtime_classpath"),
       BTAPI_BUILD_TOOLS_IMPL("--btapi_build_tools_impl"),
       BTAPI_KOTLIN_COMPILER_EMBEDDABLE("--btapi_kotlin_compiler_embeddable"),
       BTAPI_KOTLIN_DAEMON_CLIENT("--btapi_kotlin_daemon_client"),
@@ -96,6 +108,10 @@ class KotlinBuilder(
       INTERNAL_SKIP_CODE_GEN("--internal_skip_code_gen"),
       INTERNAL_KAPT("--internal_kapt"),
       INTERNAL_JDEPS("--internal_jdeps"),
+      JDEPS_JAR("--jdeps_jar"),
+      ABI_GEN_JAR("--abi_gen_jar"),
+      SKIP_CODE_GEN_JAR("--skip_code_gen_jar"),
+      KAPT_JAR("--kapt_jar"),
     }
   }
 
@@ -146,7 +162,7 @@ class KotlinBuilder(
     return Pair(argMap, context)
   }
 
-  private fun buildTaskInfo(argMap: ArgMap): CompilationTaskInfo.Builder =
+  fun buildTaskInfo(argMap: ArgMap): CompilationTaskInfo.Builder =
     with(CompilationTaskInfo.newBuilder()) {
       addAllDebug(argMap.mandatory(KotlinBuilderFlags.DEBUG))
 
@@ -185,6 +201,9 @@ class KotlinBuilder(
       argMap.optionalSingle(KotlinBuilderFlags.IC_ENABLE_LOGGING)?.let {
         icEnableLogging = it.equals("true", ignoreCase = true)
       }
+      argMap.optionalSingle(KotlinBuilderFlags.BUILD_TOOLS_API)?.let {
+        buildToolsApi = it.equals("true", ignoreCase = true)
+      }
       this
     }
 
@@ -194,12 +213,18 @@ class KotlinBuilder(
     argMap: ArgMap,
   ) {
     val task = buildJvmTask(context.info, workingDir, argMap)
-    val btapiRuntime = buildBtapiRuntimeSpec(argMap)
-    val internalPlugins = buildInternalCompilerPlugins(argMap)
+    
     context.whenTracing {
       printProto("jvm task message:", task)
     }
-    jvmTaskExecutor.execute(context, task, btapiRuntime, internalPlugins)
+
+    if (task.info.buildToolsApi) {
+      btapiTaskExecutor.execute(context, task, buildToolchainSpec(argMap))
+    } else {
+      val btapiRuntime = buildBtapiRuntimeSpec(argMap)
+      val internalPlugins = buildInternalCompilerPlugins(argMap)
+      jvmTaskExecutor.execute(context, task, btapiRuntime, internalPlugins)
+    }
   }
 
   private fun buildBtapiRuntimeSpec(argMap: ArgMap): BtapiRuntimeSpec =
@@ -222,7 +247,16 @@ class KotlinBuilder(
       jdepsJar = argMap.mandatorySingle(KotlinBuilderFlags.INTERNAL_JDEPS),
     )
 
-  private fun buildJvmTask(
+  private fun buildToolchainSpec(argMap: ArgMap): ToolchainSpec =
+    ToolchainSpec(
+      btapiClasspath = argMap.mandatory(KotlinBuilderFlags.BTAPI_RUNTIME_CLASSPATH).map(Path::of),
+      jdepsJar = Path.of(argMap.mandatorySingle(KotlinBuilderFlags.JDEPS_JAR)),
+      abiGenJar = Path.of(argMap.mandatorySingle(KotlinBuilderFlags.ABI_GEN_JAR)),
+      skipCodeGenJar = Path.of(argMap.mandatorySingle(KotlinBuilderFlags.SKIP_CODE_GEN_JAR)),
+      kaptJar = Path.of(argMap.mandatorySingle(KotlinBuilderFlags.KAPT_JAR)),
+    )
+
+  fun buildJvmTask(
     info: CompilationTaskInfo,
     workingDir: Path,
     argMap: ArgMap,
@@ -252,8 +286,6 @@ class KotlinBuilder(
         argMap.optionalSingle(KotlinBuilderFlags.GENERATED_CLASS_JAR)?.let {
           generatedClassJar = it
         }
-        // Note: IC data (classpath snapshots) is stored in worker-local IC directories,
-        // not as Bazel-tracked outputs.
       }
 
       with(root.directoriesBuilder) {
@@ -283,8 +315,6 @@ class KotlinBuilder(
         coverageMetadataClasses =
           getOutputDirPath(info, workingDir, moduleName, "coverage-metadata", outputJar)
             .toString()
-        // Derive IC base directory from output JAR path: <output_jar>-ic/
-        // This is a worker-local side-effect, not a Bazel-tracked output.
         if (info.incrementalCompilation && outputJar != null) {
           val outputPath = Paths.get(outputJar).toAbsolutePath()
           val jarName = outputPath.fileName.toString().removeSuffix(".jar")
@@ -306,11 +336,31 @@ class KotlinBuilder(
           ?.let(PluginsPayloadParser::parse)
           ?.also(::addAllPlugins)
 
-        // Kotlin compiler always requires absolute path for source input in incremental mode
+        addAllStubsPluginOptions(
+          argMap.optional(KotlinBuilderFlags.STUBS_PLUGIN_OPTIONS) ?: emptyList(),
+        )
+        addAllStubsPlugins(
+          argMap.optional(KotlinBuilderFlags.STUBS_PLUGINS) ?: emptyList(),
+        )
+        addAllStubsPluginClasspath(
+          argMap.optional(KotlinBuilderFlags.STUBS_PLUGIN_CLASS_PATH) ?: emptyList(),
+        )
+
+        addAllCompilerPluginOptions(
+          argMap.optional(KotlinBuilderFlags.COMPILER_PLUGIN_OPTIONS) ?: emptyList(),
+        )
+        addAllCompilerPlugins(
+          argMap.optional(KotlinBuilderFlags.COMPILER_PLUGINS) ?: emptyList(),
+        )
+        addAllCompilerPluginClasspath(
+          argMap.optional(KotlinBuilderFlags.COMPILER_PLUGIN_CLASS_PATH) ?: emptyList(),
+        )
+
         val useAbsolutePath =
           argMap
             .optionalSingle(KotlinBuilderFlags.INCREMENTAL_COMPILATION)
             ?.equals("true", ignoreCase = true) == true
+
         argMap
           .optional(KotlinBuilderFlags.SOURCES)
           ?.map {
@@ -353,8 +403,6 @@ class KotlinBuilder(
     outputJar: String?,
   ): Path {
     if (info.incrementalCompilation && outputJar != null) {
-      // Derive incremental directory from output jar path to keep it inside Bazel's output tree.
-      // This ensures the cache is cleaned with `bazel clean` and is configuration-specific.
       val outputPath = Paths.get(outputJar).toAbsolutePath()
       val outputDir = outputPath.parent
       val jarName = outputPath.fileName.toString().removeSuffix(".jar")

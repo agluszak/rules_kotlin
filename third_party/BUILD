@@ -1,4 +1,3 @@
-load("@bazel_lib//lib:copy_file.bzl", "copy_file")
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@rules_java//java:defs.bzl", "java_binary", "java_library", "java_plugin")
 load("//src/main/starlark/release:packager.bzl", "release_archive")
@@ -23,10 +22,15 @@ exports_files([
     "java_stub_template.txt",
 ])
 
-copy_file(
+genrule(
     name = "empty",
-    src = "empty-definately-not-binary-jar.txt",
-    out = "empty.jar",
+    srcs = [
+        "empty-definately-not-binary-jar.txt",
+    ],
+    outs = [
+        "empty.jar",
+    ],
+    cmd = "cp $(location empty-definately-not-binary-jar.txt) $@",
 )
 
 java_plugin(
@@ -34,14 +38,14 @@ java_plugin(
     generates_api = 1,
     processor_class = "com.google.auto.value.processor.AutoValueProcessor",
     visibility = ["//visibility:private"],
-    deps = ["@kotlin_rules_maven//:com_google_auto_value_auto_value"],
+    deps = ["@rules_kotlin_maven_dev//:com_google_auto_value_auto_value"],
 )
 
 java_library(
     name = "autovalue",
     exported_plugins = [":autovalue_plugin"],
     neverlink = 1,
-    exports = ["@kotlin_rules_maven//:com_google_auto_value_auto_value_annotations"],
+    exports = ["@rules_kotlin_maven_dev//:com_google_auto_value_auto_value_annotations"],
 )
 
 java_plugin(
@@ -50,7 +54,7 @@ java_plugin(
     processor_class = "dagger.internal.codegen.ComponentProcessor",
     visibility = ["//visibility:private"],
     deps = [
-        "@kotlin_rules_maven//:com_google_dagger_dagger_compiler",
+        "@rules_kotlin_maven_dev//:com_google_dagger_dagger_compiler",
     ],
 )
 
@@ -58,8 +62,8 @@ java_library(
     name = "dagger",
     exported_plugins = [":dagger_component_plugin"],
     exports = [
-        "@kotlin_rules_maven//:com_google_dagger_dagger",
-        "@kotlin_rules_maven//:javax_inject_javax_inject",
+        "@rules_kotlin_maven_dev//:com_google_dagger_dagger",
+        "@rules_kotlin_maven_dev//:javax_inject_javax_inject",
     ],
 )
 
@@ -67,7 +71,7 @@ java_binary(
     name = "jarjar_runner",
     main_class = "com.eed3si9n.jarjar.Main",
     visibility = ["//visibility:public"],
-    runtime_deps = ["@kotlin_rules_maven//:com_eed3si9n_jarjarabrams_jarjar_abrams_assembly_2_13"],
+    runtime_deps = ["@rules_kotlin_maven_dev//:com_eed3si9n_jarjarabrams_jarjar_abrams_assembly_2_13"],
 )
 
 bzl_library(

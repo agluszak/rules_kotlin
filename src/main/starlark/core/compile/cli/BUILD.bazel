@@ -12,6 +12,12 @@ java_library(
         "@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_compiler",
     ],
 )
+java_library(
+    name = "kotlinc_jar",
+    exports = [
+        "//kotlin/compiler:kotlin-compiler",
+    ],
+)
 
 java_binary(
     name = "kotlinc",

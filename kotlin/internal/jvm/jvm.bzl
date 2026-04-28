@@ -15,19 +15,10 @@
 
 ### Setup
 
-Add the following snippet to your `WORKSPACE` file:
+Add `rules_kotlin` to your `MODULE.bazel`:
 
 ```bzl
-git_repository(
-    name = "rules_kotlin",
-    remote = "https://github.com/bazelbuild/rules_kotlin.git",
-    commit = "<COMMIT_HASH>",
-)
-load("@rules_kotlin//kotlin:repositories.bzl", "kotlin_repositories")
-kotlin_repositories(kotlin_release_version = "1.4.0")
-
-load("@rules_kotlin//kotlin:core.bzl", "kt_register_toolchains")
-kt_register_toolchains()
+bazel_dep(name = "rules_kotlin", version = "<VERSION>")
 ```
 
 To enable persistent worker support, add the following to the appropriate `bazelrc` file:
@@ -40,8 +31,8 @@ test --strategy=KotlinCompile=worker
 
 ### Standard Libraries
 
-The Kotlin libraries that are bundled in a kotlin release should be used with the rules, the mandatory standard libraries are added implicetly. After enabling
-the repository the following Kotlin Libraries are also made available from the workspace `com_github_jetbrains_kotlin`:
+The Kotlin libraries that are bundled in a kotlin release should be used with the rules, the mandatory standard libraries are added implicetly. The following
+Kotlin Libraries are available from the `//kotlin/compiler` aliases:
 
 * `kotlin-test`,
 * `kotlin-reflect`.
@@ -141,7 +132,7 @@ _implicit_deps = {
     ),
     "_ksp2_kotlinx_coroutines": attr.label(
         doc = "kotlinx-coroutines-core-jvm JAR required by KSP2",
-        default = Label("//kotlin/compiler:kotlinx-coroutines-core-jvm"),
+        default = Label("//kotlin/compiler:ksp-intellij-kotlinx-coroutines-core-jvm"),
         cfg = "exec",
     ),
     "_ksp2_symbol_processing_aa": attr.label(
@@ -261,7 +252,6 @@ _common_attr = utils.add_dicts(
                 [JavaPluginInfo],
                 [KtPluginConfiguration],
                 [_KspPluginInfo],
-                [_KtCompilerPluginInfo],
                 [_KtCompilerPluginInfo],
             ],
         ),
@@ -655,6 +645,11 @@ kt_jvm_library(
             doc = """Runs Java compilation action for plugin generating Java output.""",
             default = False,
         ),
+        "options": attr.string_dict(
+            doc = """Processor options passed to the KSP processor via SymbolProcessorEnvironment.options.
+            Each entry is a key-value pair available to the processor at processing time.""",
+            default = {},
+        ),
         "processor_class": attr.string(
             doc = " The fully qualified class name that the Java compiler uses as an entry point to the annotation processor.",
             mandatory = True,
@@ -667,7 +662,7 @@ kt_jvm_library(
 kt_plugin_cfg = rule(
     implementation = kt_plugin_cfg_impl,
     doc = """
-    Configurations for kt_compiler_plugin, ksp_plugin, and java_plugin.
+    Configurations for kt_compiler_plugin.
 
     This allows setting options and dependencies independently from the initial plugin definition.
     """,

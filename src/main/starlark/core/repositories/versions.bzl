@@ -58,22 +58,6 @@ versions = struct(
             "https://github.com/bazelbuild/rules_jvm_external/releases/download/{version}/rules_jvm_external-{version}.tar.gz",
         ],
     ),
-    COM_GOOGLE_PROTOBUF = version(
-        version = "29.0",
-        sha256 = "10a0d58f39a1a909e95e00e8ba0b5b1dc64d02997f741151953a2b3659f6e78c",
-        strip_prefix_template = "protobuf-{version}",
-        url_templates = [
-            "https://github.com/protocolbuffers/protobuf/releases/download/v{version}/protobuf-{version}.tar.gz",
-        ],
-    ),
-    RULES_PROTO = version(
-        version = "7.0.2",
-        sha256 = "0e5c64a2599a6e26c6a03d6162242d231ecc0de219534c38cb4402171def21e8",
-        strip_prefix_template = "rules_proto-{version}",
-        url_templates = [
-            "https://github.com/bazelbuild/rules_proto/releases/download/{version}/rules_proto-{version}.tar.gz",
-        ],
-    ),
     PINTEREST_KTLINT = version(
         version = "1.6.0",
         url_templates = [
@@ -81,8 +65,28 @@ versions = struct(
         ],
         sha256 = "5ba1ac917a06b0f02daaa60d10abbedd2220d60216af670c67a45b91c74cf8bb",
     ),
-    # Used for kotlin capabilities repository (compiler version detection)
-    KOTLIN_CURRENT_COMPILER_VERSION = "2.3.20-RC",
+    # Used for bootstrapping only
+    KOTLIN_CURRENT_COMPILER_RELEASE = version(
+        version = "2.3.21",
+        url_templates = [
+            "https://github.com/JetBrains/kotlin/releases/download/v{version}/kotlin-compiler-{version}.zip",
+        ],
+        sha256 = "a8cfc1d62cd4d0de4d04f42575e40135bd620588c17d568a20eb9c7c259af14f",
+    ),
+    KSP_CURRENT_COMPILER_PLUGIN_RELEASE = version(
+        version = "2.3.7",
+        url_templates = [
+            "https://github.com/google/ksp/releases/download/{version}/artifacts.zip",
+        ],
+        sha256 = "9c6df9fc16708ba3e6a2cc0040a9b8520710b7d8ef4d6f79dca5092d256535d1",
+    ),
+    KOTLIN_BUILD_TOOLS_IMPL = version(
+        version = "2.3.21",
+        url_templates = [
+            "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-build-tools-impl/{version}/kotlin-build-tools-impl-{version}.jar",
+        ],
+        sha256 = "2cd70396404a0e43c05aaf79a8b35ff3a8ff2e296aedf770f6e5923fbfacae3b",
+    ),
     RULES_ANDROID = version(
         version = "0.7.0",
         url_templates = [
@@ -106,13 +110,26 @@ versions = struct(
         ],
         sha256 = "26d4021f6898e23b82ef953078389dd49ac2b5618ac564ade4ef87cced147b38",
     ),
-    BAZEL_WORKER_API = version(
-        version = "0.0.8",
-        sha256 = "a58c8c1e53aec7d66498168b0525bfd87add4d3cfd18e3ed03d5bed929dd68fc",
-        strip_prefix_template = "bazel-worker-api-{version}",
+    KOTLINX_SERIALIZATION_CORE_JVM = version(
+        version = "1.8.1",
         url_templates = [
-            "https://github.com/bazelbuild/bazel-worker-api/releases/download/v{version}/bazel-worker-api-v{version}.tar.gz",
+            "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-serialization-core-jvm/{version}/kotlinx-serialization-core-jvm-{version}.jar",
         ],
+        sha256 = "3565b6d4d789bf70683c45566944287fc1d8dc75c23d98bd87d01059cc76f2b3",
+    ),
+    KOTLINX_SERIALIZATION_JSON = version(
+        version = "1.8.1",
+        url_templates = [
+            "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-serialization-json/{version}/kotlinx-serialization-json-{version}.jar",
+        ],
+        sha256 = "58adf3358a0f99dd8d66a550fbe19064d395e0d5f7f1e46515cd3470a56fbbb0",
+    ),
+    KOTLINX_SERIALIZATION_JSON_JVM = version(
+        version = "1.8.1",
+        url_templates = [
+            "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-serialization-json-jvm/{version}/kotlinx-serialization-json-jvm-{version}.jar",
+        ],
+        sha256 = "8769e5647557e3700919c32d508f5c5dad53c5d8234cd10846354fbcff14aa24",
     ),
     PY_ABSL = version(
         version = "2.1.0",

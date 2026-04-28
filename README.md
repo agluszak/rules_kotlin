@@ -34,7 +34,7 @@ Additionally, `kt_jvm_binary` and `kt_jvm_test` support environment variable con
 Android rules also support custom_package for `R.java` generation, `manifest=`, `resource_files`, etc.
 
 Other features:
-  * Persistent worker support.
+  * Persistent worker and multiplex worker support.
   * Mixed-Mode compilation (compile Java and Kotlin in one pass).
   * Configurable Kotlinc distribution and version
   * Configurable Toolchain
@@ -50,29 +50,10 @@ Generated API documentation is available at
 # Quick Guide
 
 ## Installation
-Copy from the
-[release you wish to use](https://github.com/bazelbuild/rules_kotlin/releases) either the Bzlmod or WORKSPACE snippet into your `MODULE.bazel` or `WORKSPACE` file respectively.
-
-### `WORKSPACE`
-In the project's `WORKSPACE`, declare the external repository and initialize the toolchains, like
-this:
+Copy this into your `MODULE.bazel`:
 
 ```python
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
-rules_kotlin_version = "1.9.0"
-rules_kotlin_sha = "5766f1e599acf551aa56f49dab9ab9108269b03c557496c54acaf41f98e2b8d6"
-http_archive(
-    name = "rules_kotlin",
-    urls = ["https://github.com/bazelbuild/rules_kotlin/releases/download/v%s/rules_kotlin-v%s.tar.gz" % (rules_kotlin_version, rules_kotlin_version)],
-    sha256 = rules_kotlin_sha,
-)
-
-load("@rules_kotlin//kotlin:repositories.bzl", "kotlin_repositories")
-kotlin_repositories() # if you want the default. Otherwise see custom kotlinc distribution below
-
-load("@rules_kotlin//kotlin:core.bzl", "kt_register_toolchains")
-kt_register_toolchains() # to use the default toolchain, otherwise see toolchains below
+bazel_dep(name = "rules_kotlin", version = "2.2.0")
 ```
 
 ## `BUILD` files
@@ -94,51 +75,29 @@ kt_jvm_library(
 ## Custom toolchain
 
 To enable a custom toolchain (to configure language level, etc.)
-do the following.  In a `<workspace>/BUILD.bazel` file define the following:
+do the following. In a `BUILD.bazel` file define the following:
 
 ```python
 load("@rules_kotlin//kotlin:core.bzl", "define_kt_toolchain")
 
 define_kt_toolchain(
     name = "kotlin_toolchain",
-    api_version = KOTLIN_LANGUAGE_LEVEL,  # "2.0", "2.1", "2.2", or "2.3"
+    api_version = KOTLIN_LANGUAGE_LEVEL,  # "1.9", "2.0", "2.1", "2.2", or "2.3"
     jvm_target = JAVA_LANGUAGE_LEVEL, # "1.8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", or "25"
-    language_version = KOTLIN_LANGUAGE_LEVEL,  # "2.0", "2.1", "2.2", or "2.3"
+    language_version = KOTLIN_LANGUAGE_LEVEL,  # "1.9", "2.0", "2.1", "2.2", or "2.3"
 )
 ```
 
-and then in your `WORKSPACE` file, instead of `kt_register_toolchains()` do
+and then in your `MODULE.bazel` do
 
 ```python
 register_toolchains("//:kotlin_toolchain")
 ```
 
-## Custom `kotlinc` distribution (and version)
+## Kotlin compiler artifacts
 
-To choose a different `kotlinc` distribution (Kotlin 2.0+), do the following
-in your `WORKSPACE` file (or import from a `.bzl` file:
-
-### `MODULE.bazel`
-```python
-rules_kotlin_extensions = use_extension("@rules_kotlin//src/main/starlark/core/repositories:bzlmod_setup.bzl", "rules_kotlin_extensions")
-rules_kotlin_extensions.kotlinc_version(
-    version = "2.1.20",
-    sha256 = "a118197b0de55ffab2bc8d5cd03a5e39033cfb53383d6931bc761dec0784891a"
-)
-use_repo(rules_kotlin_extensions, "com_github_google_ksp", "com_github_jetbrains_kotlin", "com_github_jetbrains_kotlin_git", "com_github_pinterest_ktlint", "kotlinx_serialization_core_jvm", "kotlinx_serialization_json", "kotlinx_serialization_json_jvm")
-```
-
-### `WORKSPACE`
-```python
-load("@rules_kotlin//kotlin:repositories.bzl", "kotlin_repositories", "kotlinc_version")
-
-kotlin_repositories(
-    compiler_release = kotlinc_version(
-        release = "2.1.20",
-        sha256 = "a118197b0de55ffab2bc8d5cd03a5e39033cfb53383d6931bc761dec0784891a"
-    )
-)
-```
+Kotlin compiler/runtime/plugin jars are resolved from maven coordinates managed by
+`rules_kotlin`. Custom compiler distribution overrides via repository rules are not supported.
 
 ## Third party dependencies 
 _(e.g. Maven artifacts)_
@@ -214,8 +173,7 @@ define_kt_toolchain(
 
 You can optionally override compiler flags at the target level by providing an alternative set of `kt_kotlinc_options` or `kt_javac_options` in your target definitions.
 
-For most compiler flags, rule-level options override toolchain defaults.
-`api_version` and `language_version` are toolchain-owned and are not exposed on `kt_kotlinc_options`.
+Compiler flags that are passed to the rule definitions will be taken over the toolchain definition.
 
 Example:
 ```python
@@ -225,7 +183,7 @@ load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
 kt_kotlinc_options(
     name = "kt_kotlinc_options_for_package_name",
     x_no_param_assertions = True,
-    opt_in = [
+    x_optin = [
         "kotlin.Experimental",
         "kotlin.ExperimentalStdlibApi",
     ],
@@ -245,38 +203,133 @@ kt_jvm_library(
 )
 ```
 
-For string-valued `kt_kotlinc_options` attributes, an empty string (`""`) means "unset", so the corresponding compiler flag is not passed.
+### Lambda Bytecode Generation
 
-### Breaking Changes (rules_kotlin 2.x)
-
-- Kotlin compiler versions below 2.0 are no longer supported.
-- `kt_kotlinc_options` no longer exposes `api_version` and `language_version`; configure these in `define_kt_toolchain(...)`.
-- `x_use_k2` is no longer exposed on `kt_kotlinc_options` (K2 is toolchain-managed).
-- Option names aligned with current Kotlin flag names:
-  - `x_optin` -> `opt_in`
-  - `x_jsr_305` -> `x_jsr305`
-
-### Breaking Change: Lambda Bytecode Generation (rules_kotlin 2.x)
-
-Starting with rules_kotlin 2.0, `x_lambdas` and `x_sam_conversions` now use Kotlin's default values (`"indy"` for Kotlin 2.x).
-
-**Prior versions** of rules_kotlin defaulted to `"class"` (anonymous inner classes). If you need to preserve the old behavior for compatibility:
+Note: `kt_kotlinc_options` defaults `x_lambdas` and `x_sam_conversions` to `"class"`, which differs from Kotlin 2.x and Gradle's default of `"indy"` (invokedynamic). If you encounter issues with bytecode analysis tools expecting invokedynamic-based lambdas, configure these options:
 
 ```python
 kt_kotlinc_options(
     name = "kt_kotlinc_options",
-    x_lambdas = "class",
-    x_sam_conversions = "class",
+    x_lambdas = "indy",
+    x_sam_conversions = "indy",
 )
 ```
-
-The `"indy"` (invokedynamic) mode generally produces smaller bytecode and better performance, but may affect bytecode analysis tools.
 
 Additionally, you can add options for both tracing and timing of the bazel build using the `kt_trace` and `kt_timings` flags, for example:
 * `bazel build --define=kt_trace=1`
 * `bazel build --define=kt_timings=1`
 
 `kt_trace=1` will allow you to inspect the full kotlinc commandline invocation, while `kt_timings=1` will report the high level time taken for each step.
+
+# Build Tools API
+
+The Build Tools API is a modern compilation interface provided by JetBrains for invoking the Kotlin compiler. It offers better integration and is required for incremental compilation support.
+
+**This feature is enabled by default.**
+
+To disable the Build Tools API and use the legacy compilation approach, add the following flag to your build:
+
+```bash
+bazel build --@rules_kotlin//kotlin/settings:experimental_build_tools_api=false //your:target
+```
+
+Or add it to your `.bazelrc` file:
+
+```
+build --@rules_kotlin//kotlin/settings:experimental_build_tools_api=false
+```
+
+# Workers
+
+Persistent workers and multiplex workers are enabled by default for Kotlin compilation actions. This significantly improves build performance by reusing compiler processes across builds.
+
+The following action mnemonics support workers:
+
+| Mnemonic | Description |
+| :--- | :--- |
+| `KotlinCompile` | Main Kotlin compilation |
+| `KotlinKsp2` | KSP 2 symbol processing |
+| `JdepsMerge` | Jdeps file merging |
+
+## Disabling workers
+
+To disable persistent workers for a specific mnemonic and fall back to non-worker execution:
+
+```
+build --strategy=KotlinCompile=local
+build --strategy=KotlinKsp2=local
+build --strategy=JdepsMerge=local
+```
+
+## Disabling multiplex workers
+
+To disable multiplex workers while still using regular persistent workers, set the max multiplex instances to 0 for the desired mnemonic:
+
+```
+build --experimental_worker_max_multiplex_instances=KotlinCompile=0
+build --experimental_worker_max_multiplex_instances=KotlinKsp2=0
+build --experimental_worker_max_multiplex_instances=JdepsMerge=0
+```
+
+## Tuning multiplex workers
+
+You can control the number of concurrent multiplex work units per worker process:
+
+```
+build --experimental_worker_max_multiplex_instances=KotlinCompile=5
+```
+
+## Multiplex sandboxing
+
+Multiplex sandboxing provides sandbox isolation for each work request within a multiplex worker. It can be enabled via the Kotlin toolchain:
+
+```python
+load("@rules_kotlin//kotlin:core.bzl", "define_kt_toolchain")
+
+define_kt_toolchain(
+    name = "kotlin_toolchain",
+    experimental_multiplex_sandboxing = True,
+)
+```
+
+Then register the toolchain in your `WORKSPACE`:
+
+```python
+register_toolchains("//:kotlin_toolchain")
+```
+
+And pass the Bazel flag to activate sandbox support:
+
+```
+build --experimental_worker_multiplex_sandboxing
+```
+
+## Path mapping
+
+Path mapping rewrites action input/output paths to shorter, config-independent forms. This reduces unnecessary cache misses when switching between configurations (e.g., different platforms or optimization levels). It requires multiplex sandboxing to be enabled.
+
+```python
+load("@rules_kotlin//kotlin:core.bzl", "define_kt_toolchain")
+
+define_kt_toolchain(
+    name = "kotlin_toolchain",
+    experimental_multiplex_sandboxing = True,
+    supports_path_mapping = True,
+)
+```
+
+Then register the toolchain in your `WORKSPACE`:
+
+```python
+register_toolchains("//:kotlin_toolchain")
+```
+
+And pass the Bazel flags to activate both features:
+
+```
+build --experimental_worker_multiplex_sandboxing
+build --experimental_output_paths=strip
+```
 
 # KSP (Kotlin Symbol Processing)
 
@@ -303,6 +356,8 @@ kt_jvm_library(
     plugins = ["//:moshi-kotlin-codegen"],
 )
 ```
+
+KSP distribution coordinates are managed by `rules_kotlin` and are not exposed as a separate `ksp_version` override.
 
 # Kotlin compiler plugins
 

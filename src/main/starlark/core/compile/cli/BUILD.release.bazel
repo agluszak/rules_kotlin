@@ -4,14 +4,12 @@ load("//kotlin/compiler:compiler_deps.bzl", _KOTLIN_STDLIBS = "KOTLIN_STDLIBS")
 load("//src/main/starlark/core/compile:common.bzl", "TYPE")
 load("//src/main/starlark/core/repositories:versions.bzl", "versions")
 load(":toolchain.bzl", "cli_toolchain")
-
 java_library(
     name = "kotlinc_jar",
     exports = [
         "@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_compiler",
     ],
 )
-
 java_binary(
     name = "kotlinc",
     data = _KOTLIN_STDLIBS,
@@ -24,7 +22,6 @@ java_binary(
         "//kotlin/compiler:kotlinx-coroutines-core-jvm",
     ],
 )
-
 cli_toolchain(
     name = "cli_toolchain",
     api_version = versions.KOTLIN_CURRENT_COMPILER_VERSION,
@@ -34,9 +31,23 @@ cli_toolchain(
     language_version = versions.KOTLIN_CURRENT_COMPILER_VERSION,
     zip = "@bazel_tools//tools/zip:zipper",
 )
-
 toolchain(
     name = "cli",
     toolchain = ":cli_toolchain",
     toolchain_type = TYPE,
+)
+java_library(
+    name = "kotlinc_jar",
+    exports = [
+        "//kotlin/compiler:kotlin-compiler",
+    ],
+)
+cli_toolchain(
+    name = "cli_toolchain",
+    api_version = versions.KOTLIN_CURRENT_COMPILER_RELEASE.version,
+    jvm_target = "11",
+    kotlin_stdlibs = _KOTLIN_STDLIBS,
+    kotlinc = ":kotlinc",
+    language_version = versions.KOTLIN_CURRENT_COMPILER_RELEASE.version,
+    zip = "@bazel_tools//tools/zip:zipper",
 )

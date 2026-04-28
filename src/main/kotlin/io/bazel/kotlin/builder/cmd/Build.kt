@@ -20,6 +20,7 @@ package io.bazel.kotlin.builder.cmd
 import io.bazel.kotlin.builder.tasks.CompileKotlin
 import io.bazel.kotlin.builder.tasks.KotlinBuilder
 import io.bazel.kotlin.builder.tasks.jvm.KotlinJvmTaskExecutor
+import io.bazel.kotlin.builder.tasks.jvm.btapi.KotlinBtapiJvmTaskExecutor
 import io.bazel.worker.Worker
 import kotlin.system.exitProcess
 
@@ -28,9 +29,10 @@ object Build {
   fun main(args: Array<String>) {
     Worker
       .from(args.toList()) {
-        val jvmTaskExecutor = KotlinJvmTaskExecutor()
-        val builder = KotlinBuilder(jvmTaskExecutor)
-        start(CompileKotlin(builder))
+        val legacyJvmTaskExecutor = KotlinJvmTaskExecutor()
+        val btapiJvmTaskExecutor = KotlinBtapiJvmTaskExecutor()
+        val builder = KotlinBuilder(legacyJvmTaskExecutor, btapiJvmTaskExecutor)
+        btapiJvmTaskExecutor.use { start(CompileKotlin(builder)) }
       }.run(::exitProcess)
   }
 }

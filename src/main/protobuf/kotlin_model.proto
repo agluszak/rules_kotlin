@@ -86,9 +86,8 @@ message CompilationTaskInfo {
     bool treat_internal_as_private_in_abi_jar = 12;
     // Private classes are removed in abi.jar generation
     bool remove_private_classes_in_abi_jar = 13;
-    // Reserved: was build_tools_api (removed - Build Tools API is now always used)
-    reserved 14;
-    reserved "build_tools_api";
+    // Build Tools API is used for compilation.
+    bool build_tools_api = 14;
     // Debug info is stripped in abi.jar generation
     bool remove_debug_info = 15;
     // Enable incremental compilation.
@@ -140,9 +139,6 @@ message JvmCompilationTask {
     string generated_ksp_src_jar = 8;
     // The path to the jar containing the generated KSP classes
     string generated_ksp_classes_jar = 9;
-    // Reserved: removed unused classpath snapshot fields
-    reserved 10, 11;
-    reserved "classpath_snapshot", "shrunk_classpath_snapshot";
   }
 
   message Inputs {
@@ -186,20 +182,27 @@ message JvmCompilationTask {
       repeated string processors = 7;
       // Annotation processor classpath.
       repeated string processorpaths = 8;
-      // Reserved: replaced by structured plugins.
-      reserved 9, 11, 12, 13, 14;
-      reserved "stubs_plugin_options", "stubs_plugins", "stubs_plugin_classpath", "compiler_plugin_options", "compiler_plugins", "compiler_plugin_classpath";
+      
+      // Kotlin stubs phase compiler plugin options
+      repeated string stubs_plugin_options = 9;
       // Kotlin compiler plugins with explicit phase information.
       repeated Plugin plugins = 10;
+      // Kotlin stubs phase compiler plugin IDs
+      repeated string stubs_plugins = 11;
+      // Kotlin stubs phase compiler plugin classpath
+      repeated string stubs_plugin_classpath = 12;
+      // Kotlin compiler phase compiler plugin options
+      repeated string compiler_plugin_options = 13;
+      // Kotlin compiler phase compiler plugin IDs
+      repeated string compiler_plugins = 14;
+      // Kotlin compiler phase compiler plugin classpath
+      repeated string compiler_plugin_classpath = 15;
+
       // Java opts to be passed to java compiler
-      repeated string javac_flags = 15;
+      repeated string javac_flags = 16;
       // JDeps dependency artifacts
-      repeated string deps_artifacts = 16;
-      // Reserved: removed old classpath snapshot fields (replaced by field 19)
-      reserved 17, 18;
-      reserved "previous_shrunk_classpath_snapshot";
+      repeated string deps_artifacts = 17;
       // Classpath snapshot files from dependencies (for incremental compilation).
-      // These are declared Bazel outputs from upstream targets' snapshot actions.
       repeated string classpath_snapshots = 19;
   }
 

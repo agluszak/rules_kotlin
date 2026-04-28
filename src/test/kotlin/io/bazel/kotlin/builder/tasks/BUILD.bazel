@@ -82,12 +82,12 @@ kt_rules_test(
 # Trick to get default files produced by jvm_import into data
 filegroup(
     name = "auto_value",
-    srcs = ["@kotlin_rules_maven//:com_google_auto_value_auto_value"],
+    srcs = ["@rules_kotlin_maven_dev//:com_google_auto_value_auto_value"],
 )
 
 filegroup(
     name = "auto_value_annotations",
-    srcs = ["@kotlin_rules_maven//:com_google_auto_value_auto_value_annotations"],
+    srcs = ["@rules_kotlin_maven_dev//:com_google_auto_value_auto_value_annotations"],
 )
 
 kt_rules_test(
@@ -105,40 +105,78 @@ kt_rules_test(
     deps = [
         "//kotlin/compiler:kotlin-test",
         "//src/main/kotlin/io/bazel/kotlin/builder/tasks",
-        "@kotlin_rules_maven//:junit_junit",
+        "@rules_kotlin_maven_dev//:junit_junit",
     ],
 )
 
 kt_rules_test(
-    name = "KotlinBuilderIncrementalDirTest",
-    srcs = ["jvm/KotlinBuilderIncrementalDirTest.java"],
+    name = "BtapiPluginArgumentsTest",
+    srcs = ["jvm/btapi/BtapiPluginArgumentsTest.kt"],
+    deps = [
+        "//kotlin/compiler:kotlin-test",
+        "//src/main/kotlin/io/bazel/kotlin/builder/tasks",
+        "@rules_kotlin_maven_dev//:com_google_truth_truth",
+        "@rules_kotlin_maven_dev//:junit_junit",
+    ],
 )
 
 kt_rules_test(
-    name = "IncrementalCompilationTest",
+    name = "BtapiCompilerTest",
+    srcs = ["jvm/btapi/BtapiCompilerTest.kt"],
+    deps = [
+        "//kotlin/compiler:kotlin-test",
+        "//src/main/kotlin/io/bazel/kotlin/builder/tasks",
+        "@rules_kotlin_maven_dev//:com_google_truth_truth",
+        "@rules_kotlin_maven_dev//:junit_junit",
+    ],
+)
+
+kt_rules_test(
+    name = "BtapiCompilerCacheTest",
+    srcs = ["jvm/btapi/BtapiCompilerCacheTest.kt"],
+    deps = [
+        "//kotlin/compiler:kotlin-test",
+        "//src/main/kotlin/io/bazel/kotlin/builder/tasks",
+        "@rules_kotlin_maven_dev//:com_google_truth_truth",
+        "@rules_kotlin_maven_dev//:junit_junit",
+    ],
+)
+
+kt_rules_test(
+    name = "ToolchainSpecTest",
+    srcs = ["jvm/ToolchainSpecTest.kt"],
+    deps = [
+        "//kotlin/compiler:kotlin-test",
+        "//src/main/kotlin/io/bazel/kotlin/builder/tasks",
+        "@rules_kotlin_maven_dev//:com_google_truth_truth",
+        "@rules_kotlin_maven_dev//:junit_junit",
+    ],
+)
+
+kt_rules_test(
+    name = "KotlinBuilderProtoArgsTest",
+    srcs = ["KotlinBuilderProtoArgsTest.kt"],
+    deps = [
+        "//kotlin/compiler:kotlin-test",
+        "//src/main/kotlin/io/bazel/kotlin/builder/tasks",
+        "@rules_kotlin_maven_dev//:com_google_truth_truth",
+        "@rules_kotlin_maven_dev//:junit_junit",
+    ],
+)
+
+kt_rules_test(
+    name = "KotlinBtapiJvmTaskExecutorTest",
     size = "large",
-    srcs = ["jvm/IncrementalCompilationTest.kt"],
+    srcs = ["jvm/btapi/KotlinBtapiJvmTaskExecutorTest.kt"],
     data = [
-        "//kotlin/compiler:jvm-abi-gen",
-        "//kotlin/compiler:kotlin-annotation-processing",
-        "//kotlin/compiler:kotlin-compiler",
-        "//kotlin/compiler:kotlin-stdlib",
-        "//kotlin/compiler:kotlin-stdlib-jdk7",
-        "//kotlin/compiler:kotlin-stdlib-jdk8",
-        "//src/main/kotlin:jdeps-gen",
-        "//src/main/kotlin:skip-code-gen",
-        "@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_build_tools_api",
-        "@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_build_tools_impl",
-        "@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_compiler_embeddable",
-        "@kotlin_rules_maven//:org_jetbrains_kotlin_kotlin_daemon_client",
-        "@kotlin_rules_maven//:org_jetbrains_kotlinx_kotlinx_serialization_core_jvm",
-        "@kotlin_rules_maven//:org_jetbrains_kotlinx_kotlinx_serialization_json_jvm",
+        "auto_value",
+        "auto_value_annotations",
     ],
     deps = [
         "//kotlin/compiler:kotlin-test",
         "//src/main/kotlin/io/bazel/kotlin/builder/tasks",
-        "@kotlin_rules_maven//:com_google_truth_truth",
-        "@kotlin_rules_maven//:junit_junit",
+        "@rules_kotlin_maven_dev//:com_google_truth_truth",
+        "@rules_kotlin_maven_dev//:junit_junit",
     ],
 )
 
@@ -148,46 +186,29 @@ kt_rules_test(
     deps = [
         "//src/main/kotlin/io/bazel/kotlin/builder/tasks",
         "//src/main/kotlin/io/bazel/kotlin/builder/utils",
-        "@kotlin_rules_maven//:com_google_truth_truth",
-        "@kotlin_rules_maven//:junit_junit",
-    ],
-)
-
-kt_rules_test(
-    name = "PluginsPayloadParserTest",
-    srcs = ["PluginsPayloadParserTest.kt"],
-    deps = [
-        "//src/main/kotlin/io/bazel/kotlin/builder/tasks",
-        "@kotlin_rules_maven//:com_google_truth_truth",
-        "@kotlin_rules_maven//:junit_junit",
-    ],
-)
-
-kt_rules_test(
-    name = "KotlinBuilderPassthroughFlagsTest",
-    srcs = ["jvm/KotlinBuilderPassthroughFlagsTest.kt"],
-    deps = [
-        "//kotlin/compiler:kotlin-test",
-        "@kotlin_rules_maven//:junit_junit",
+        "@rules_kotlin_maven_dev//:com_google_truth_truth",
+        "@rules_kotlin_maven_dev//:junit_junit",
     ],
 )
 
 test_suite(
     name = "tasks_tests",
     tests = [
-        ":IncrementalCompilationTest",
+        ":BtapiCompilerCacheTest",
+        ":BtapiCompilerTest",
+        ":BtapiPluginArgumentsTest",
         ":JdepsMergerTest",
         ":JdepsParserTest",
-        ":KotlinBuilderIncrementalDirTest",
+        ":KotlinBtapiJvmTaskExecutorTest",
         ":KotlinBuilderJvmAbiTest",
         ":KotlinBuilderJvmBasicTest",
         ":KotlinBuilderJvmCoverageTest",
         ":KotlinBuilderJvmJdepsTest",
         ":KotlinBuilderJvmKaptTest",
         ":KotlinBuilderJvmStrictDepsTest",
-        ":KotlinBuilderPassthroughFlagsTest",
+        ":KotlinBuilderProtoArgsTest",
         ":KotlinJvmTaskExecutorTest",
         ":Ksp2TaskTest",
-        ":PluginsPayloadParserTest",
+        ":ToolchainSpecTest",
     ],
 )
