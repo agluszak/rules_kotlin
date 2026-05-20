@@ -34,9 +34,11 @@ import org.jetbrains.kotlin.buildtools.api.jvm.operations.JvmCompilationOperatio
 import org.jetbrains.kotlin.buildtools.api.jvm.operations.JvmCompilationOperation.Companion.INCREMENTAL_COMPILATION
 import java.io.File
 import java.io.PrintStream
+import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.security.MessageDigest
 import org.jetbrains.kotlin.buildtools.api.arguments.enums.KotlinVersion as BtapiKotlinVersion
 
 /**
@@ -95,9 +97,15 @@ class BtapiCompiler(
         outputDir = Path.of(task.directories.classes),
         compilerPlugins = compilerPlugins,
         logger = logger,
-      ) { operationBuilder ->
+      ) { operationBuilder, compilerArgs, finalCompilerPlugins ->
         if (task.info.incrementalCompilation && task.directories.incrementalBaseDir.isNotEmpty()) {
-          hashUpdate = configureIncrementalCompilation(operationBuilder, task)
+          hashUpdate =
+            configureIncrementalCompilation(
+              operationBuilder = operationBuilder,
+              task = task,
+              compilerArgumentStrings = compilerArgs.build().toArgumentStrings(),
+              compilerPlugins = finalCompilerPlugins,
+            )
         }
       }
 
@@ -116,7 +124,11 @@ class BtapiCompiler(
     outputDir: Path,
     compilerPlugins: List<CompilerPlugin>,
     logger: KotlinLogger,
-    additionalConfiguration: (JvmCompilationOperation.Builder) -> Unit = {},
+    additionalConfiguration: (
+      JvmCompilationOperation.Builder,
+      JvmCompilerArguments.Builder,
+      List<CompilerPlugin>,
+    ) -> Unit = { _, _, _ -> },
   ): CompilationResult {
     val sources =
       (task.inputs.kotlinSourcesList + task.inputs.javaSourcesList)
@@ -152,7 +164,7 @@ class BtapiCompiler(
       }
     }
 
-    additionalConfiguration(operationBuilder)
+    additionalConfiguration(operationBuilder, compilerArgs, compilerPlugins)
 
     return buildSession.executeOperation(operationBuilder.build(), logger = logger)
   }
@@ -250,12 +262,19 @@ class BtapiCompiler(
   private fun configureIncrementalCompilation(
     operationBuilder: JvmCompilationOperation.Builder,
     task: JvmCompilationTask,
+    compilerArgumentStrings: List<String>,
+    compilerPlugins: List<CompilerPlugin>,
   ): IncrementalArgsHashUpdate {
     val icBaseDir = Path.of(task.directories.incrementalBaseDir)
     val icWorkingDir = icBaseDir.resolve("ic-caches")
     val shrunkSnapshot = icBaseDir.resolve("shrunk-classpath-snapshot.bin")
 
-    val currentArgsHash = computeArgsHash(task)
+    val currentArgsHash =
+      computeArgsHash(
+        task = task,
+        compilerArgumentStrings = compilerArgumentStrings,
+        compilerPlugins = compilerPlugins,
+      )
     val previousArgsHash = loadArgsHash(icBaseDir)
     val forceRecompilation = previousArgsHash != null && previousArgsHash != currentArgsHash
 
@@ -283,73 +302,106 @@ class BtapiCompiler(
     return IncrementalArgsHashUpdate(icBaseDir = icBaseDir, currentHash = currentArgsHash)
   }
 
-  private fun computeArgsHash(task: JvmCompilationTask): Long {
-    var hash = 0L
-    hash = hash * 31 + task.info.moduleName.hashCode()
-    hash = hash * 31 +
-      task.info.toolchainInfo.jvm.jvmTarget
-        .hashCode()
-    hash = hash * 31 +
-      task.info.toolchainInfo.common.apiVersion
-        .hashCode()
-    hash = hash * 31 +
-      task.info.toolchainInfo.common.languageVersion
-        .hashCode()
-    hash = hash * 31 +
-      task.info.passthroughFlagsList
-        .sorted()
-        .hashCode()
-    hash = hash * 31 +
-      task.inputs.compilerPluginsList
-        .sorted()
-        .hashCode()
-    hash = hash * 31 +
-      task.inputs.compilerPluginOptionsList
-        .sorted()
-        .hashCode()
-    hash = hash * 31 +
-      task.inputs.compilerPluginClasspathList
-        .sorted()
-        .hashCode()
-    hash = hash * 31 +
-      task.inputs.stubsPluginsList
-        .sorted()
-        .hashCode()
-    hash = hash * 31 +
-      task.inputs.stubsPluginOptionsList
-        .sorted()
-        .hashCode()
-    hash = hash * 31 +
-      task.inputs.stubsPluginClasspathList
-        .sorted()
-        .hashCode()
-    hash = hash * 31 +
-      task.inputs.nonKotlinClasspathSnapshotsList
-        .sorted()
-        .map { snapshotPath ->
-          val path = Path.of(snapshotPath)
-          val fingerprint =
-            if (Files.exists(path)) {
-              "${Files.size(path)}:${Files.getLastModifiedTime(path).toMillis()}"
-            } else {
-              "0:0"
-            }
-          "$snapshotPath:$fingerprint"
-        }.hashCode()
-    return hash
+  private fun computeArgsHash(
+    task: JvmCompilationTask,
+    compilerArgumentStrings: List<String>,
+    compilerPlugins: List<CompilerPlugin>,
+  ): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+
+    fun addLine(
+      key: String,
+      value: String,
+    ) {
+      digest.update(key.toByteArray(UTF_8))
+      digest.update(0.toByte())
+      digest.update(value.toByteArray(UTF_8))
+      digest.update('\n'.code.toByte())
+    }
+
+    fun addList(
+      key: String,
+      values: List<String>,
+    ) {
+      addLine("$key.size", values.size.toString())
+      values.forEachIndexed { index, value -> addLine("$key.$index", value) }
+    }
+
+    addLine("moduleName", task.info.moduleName)
+    addLine("jvmTarget", task.info.toolchainInfo.jvm.jvmTarget)
+    addLine("apiVersion", task.info.toolchainInfo.common.apiVersion)
+    addLine("languageVersion", task.info.toolchainInfo.common.languageVersion)
+    addLine("strictKotlinDeps", task.info.strictKotlinDeps)
+    addLine("reducedClasspathMode", task.info.reducedClasspathMode)
+    addLine("treatInternalAsPrivateInAbiJar", task.info.treatInternalAsPrivateInAbiJar.toString())
+    addLine("removePrivateClassesInAbiJar", task.info.removePrivateClassesInAbiJar.toString())
+    addLine("removeDebugInfo", task.info.removeDebugInfo.toString())
+    addLine(
+      "hasRuntimeJar",
+      task.outputs.jar
+        .isNotEmpty()
+        .toString(),
+    )
+    addLine(
+      "hasAbiJar",
+      task.outputs.abijar
+        .isNotEmpty()
+        .toString(),
+    )
+    addLine(
+      "hasJdeps",
+      task.outputs.jdeps
+        .isNotEmpty()
+        .toString(),
+    )
+    addList("compilerArgs", compilerArgumentStrings)
+    addList("compilerPluginArgs", BtapiPluginArguments.toArgumentStrings(compilerPlugins))
+    addList("classpath", task.inputs.classpathList)
+    addList("directDependencies", task.inputs.directDependenciesList)
+    addList("depsArtifacts", task.inputs.depsArtifactsList)
+    addList("friendPaths", task.info.friendPathsList)
+    addList("sourceJars", task.inputs.sourceJarsList)
+    addList("kotlinSources", task.inputs.kotlinSourcesList)
+    addList("javaSources", task.inputs.javaSourcesList)
+    addList("classpathSnapshots", task.inputs.classpathSnapshotsList)
+    addList("nonKotlinClasspathSnapshots", task.inputs.nonKotlinClasspathSnapshotsList)
+    task.inputs.nonKotlinClasspathSnapshotsList.forEachIndexed { index, snapshotPath ->
+      addLine("nonKotlinClasspathSnapshotDigest.$index", fileDigest(snapshotPath))
+    }
+
+    return digest.digest().joinToString("") { "%02x".format(it) }
+  }
+
+  private fun fileDigest(pathString: String): String {
+    val path = Path.of(pathString)
+    if (!Files.exists(path)) {
+      return "missing"
+    }
+    val digest = MessageDigest.getInstance("SHA-256")
+    Files.newInputStream(path).use { input ->
+      val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+      while (true) {
+        val read = input.read(buffer)
+        if (read < 0) {
+          break
+        }
+        digest.update(buffer, 0, read)
+      }
+    }
+    return digest.digest().joinToString("") { "%02x".format(it) }
   }
 
   private fun storeArgsHash(
     icBaseDir: Path,
-    hash: Long,
+    hash: String,
   ) {
-    Files.writeString(icBaseDir.resolve("args-hash.txt"), hash.toString())
+    Files.writeString(icBaseDir.resolve("args-hash.txt"), hash)
   }
 
-  private fun loadArgsHash(icBaseDir: Path): Long? {
+  private fun loadArgsHash(icBaseDir: Path): String? {
     val hashFile = icBaseDir.resolve("args-hash.txt")
     return if (Files.exists(hashFile)) {
-      Files.readString(hashFile).trim().toLongOrNull()
+      Files.readString(hashFile).trim().ifEmpty { null }
     } else {
       null
     }
@@ -357,7 +409,7 @@ class BtapiCompiler(
 
   private data class IncrementalArgsHashUpdate(
     val icBaseDir: Path,
-    val currentHash: Long,
+    val currentHash: String,
   )
 
   /**
